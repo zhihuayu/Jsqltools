@@ -15,6 +15,12 @@ import com.github.jsqltool.param.TableColumnsParam;
 import com.github.jsqltool.utils.JdbcUtil;
 import com.github.jsqltool.utils.StringUtil;
 
+/**
+ * 该类支持MySQL和Oracle数据库中的表create操作
+ * 
+ * @author yzh
+ * @date 2019年6月26日
+ */
 public class DefaultCreateStatement implements ICreateStatement {
 
 	private Connection connection;

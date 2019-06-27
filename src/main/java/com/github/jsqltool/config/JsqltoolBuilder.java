@@ -19,6 +19,7 @@ import com.github.jsqltool.model.DatabaseModel;
 import com.github.jsqltool.model.IModel;
 import com.github.jsqltool.model.ProfileModel;
 import com.github.jsqltool.param.ExecutorSqlParam;
+import com.github.jsqltool.param.IndexParam;
 import com.github.jsqltool.param.TableColumnsParam;
 import com.github.jsqltool.param.TablesParam;
 import com.github.jsqltool.sql.SimpleTableInfo;
@@ -28,6 +29,9 @@ import com.github.jsqltool.sql.TableColumnInfo;
 import com.github.jsqltool.sql.catelog.CatelogHandlerContent;
 import com.github.jsqltool.sql.catelog.DefaultCatelogHandler;
 import com.github.jsqltool.sql.catelog.ICatelogHandler;
+import com.github.jsqltool.sql.index.IIndexInfoHandler;
+import com.github.jsqltool.sql.index.IndexInfoHandlerContent;
+import com.github.jsqltool.sql.index.JDBCIndexInfoHandler;
 import com.github.jsqltool.sql.schema.DefaultSchemaHandler;
 import com.github.jsqltool.sql.schema.IScheamHandler;
 import com.github.jsqltool.sql.schema.SchemaHandlerContent;
@@ -42,6 +46,8 @@ import com.github.jsqltool.sql.typeHandler.DateTypeHandler;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
 import com.github.jsqltool.sql.typeHandler.TypeHandlerContent;
 import com.github.jsqltool.utils.JdbcUtil;
+import com.github.jsqltool.vo.Index;
+import com.github.jsqltool.vo.Primary;
 
 /**
  * 获取IModel实例，用于配置jsqltool的模式，支持数据库和配置文件的模式
@@ -59,6 +65,7 @@ public class JsqltoolBuilder {
 	private final TableHandlerContent table;
 	private final TableColumnHandlerContent tableColumn;
 	private final TypeHandlerContent typeHandlerContent;
+	private final IndexInfoHandlerContent indexInfoHandlerContent;
 
 	private JsqltoolBuilder() {
 		try {
@@ -87,11 +94,34 @@ public class JsqltoolBuilder {
 			typeHandlerContent = new TypeHandlerContent();
 			typeHandlerContent.addFirst(new DateTypeHandler());
 			typeHandlerContent.addFirst(new ClobTypeHandler());
+			// 索引信息处理器
+			indexInfoHandlerContent = new IndexInfoHandlerContent();
+			indexInfoHandlerContent.addFirst(new JDBCIndexInfoHandler());
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 
+	}
+
+	/**
+	 * 获取主键信息
+	 * 
+	 * @author yzh
+	 * @date 2019年6月27日
+	 */
+	public Primary getPrimayInfo(Connection connection, IndexParam param) throws SQLException {
+		return indexInfoHandlerContent.getPrimaryInfo(connection, param);
+	}
+
+	/**
+	 * 获取索引信息
+	 * 
+	 * @author yzh
+	 * @date 2019年6月27日
+	 */
+	public List<Index> listIndexInfo(Connection connection, IndexParam param) throws SQLException {
+		return indexInfoHandlerContent.getIndexInfo(connection, param);
 	}
 
 	/**
@@ -225,6 +255,14 @@ public class JsqltoolBuilder {
 
 	public void addLastCatelogHandler(ICatelogHandler handler) {
 		catelog.addLast(handler);
+	}
+
+	public void addFirstIndexInfoHandler(IIndexInfoHandler handler) {
+		indexInfoHandlerContent.addFirst(handler);
+	}
+
+	public void addLastIndexInfoHandler(IIndexInfoHandler handler) {
+		indexInfoHandlerContent.addLast(handler);
 	}
 
 	public ConnectionInfo getConnectionInfo(String user, String connectionName) {

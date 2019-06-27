@@ -1,22 +1,17 @@
 # Jsqltools
-<pre>  
   jdbc操作数据库（增删改查）的工具，简单易用可扩展，目前基于MySQL和Oracle数据库进行开发，可以自行扩展至其他数据库。
-</pre>
 
 # 相关概念
 
 ## 1.用户user
-<pre>
   user代表使用的用户，如果在单机模式下，user可以为空或者null，如果，连接信息使用配置文件的方式则会在classpath的dbPrfile文件夹下寻找对应的属性文件，如果user为空，则直接在根目录下寻找，如果user不为空，则从对应的名为user的目录下寻找。
   注：连接信息可以使用数据库的方式进行配置【待实现】。
-</pre>  
 
 
 
 # 连接池信息的配置方式
-<pre>
    连接池的配置，可以通过com.github.jsqltool.config下的config.properties文件的jsqltool.model进行配置。可选值为：profiles和databaseProfile，其分别代表使用properties配置连接池，databaseProfile代表使用数据库的方式进行配置。
-</pre>
+
 ## profiles方式
   properties文件放在classpath下的dbProfile下。
   其中，文件名为连接名称，如：测试MySQL.properties，常见配置信息如下所示：
@@ -55,6 +50,15 @@
 
 ### 获取指定数据库中的table信息
   方法：`List<SimpleTableInfo> listTable(Connection connection, TablesParam param)`
+
+### 获取指定数据表的列信息
+  方法：`List<TableColumnInfo> getTableColumnInfo(Connection connection, TableColumnsParam param)`    
     
-  
+### 获取主键信息
+  方法：`Primary getPrimayInfo(Connection connection, IndexParam param)`
+
+
+### 获取索引信息  
+   方法：`List<Index> listIndexInfo(Connection connection, IndexParam param)`
+
   
