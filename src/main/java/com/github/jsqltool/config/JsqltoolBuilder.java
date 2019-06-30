@@ -22,6 +22,7 @@ import com.github.jsqltool.param.ExecutorSqlParam;
 import com.github.jsqltool.param.IndexParam;
 import com.github.jsqltool.param.TableColumnsParam;
 import com.github.jsqltool.param.TablesParam;
+import com.github.jsqltool.param.UpdateParam;
 import com.github.jsqltool.sql.SimpleTableInfo;
 import com.github.jsqltool.sql.SqlPlus;
 import com.github.jsqltool.sql.SqlPlus.SqlResult;
@@ -45,9 +46,15 @@ import com.github.jsqltool.sql.typeHandler.ClobTypeHandler;
 import com.github.jsqltool.sql.typeHandler.DateTypeHandler;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
 import com.github.jsqltool.sql.typeHandler.TypeHandlerContent;
+import com.github.jsqltool.sql.update.DefaultUpdateDataHandler;
+import com.github.jsqltool.sql.update.IUpdateDataHandler;
+import com.github.jsqltool.sql.update.MySqlUpdateDataHandler;
+import com.github.jsqltool.sql.update.OracleUpdateDataHandler;
+import com.github.jsqltool.sql.update.UpdateDataHandlerContent;
 import com.github.jsqltool.utils.JdbcUtil;
 import com.github.jsqltool.vo.Index;
 import com.github.jsqltool.vo.Primary;
+import com.github.jsqltool.vo.UpdateResult;
 
 /**
  * 获取IModel实例，用于配置jsqltool的模式，支持数据库和配置文件的模式
@@ -66,6 +73,8 @@ public class JsqltoolBuilder {
 	private final TableColumnHandlerContent tableColumn;
 	private final TypeHandlerContent typeHandlerContent;
 	private final IndexInfoHandlerContent indexInfoHandlerContent;
+	// 更新数据处理器
+	private final UpdateDataHandlerContent updateDataHandlerContent;
 
 	private JsqltoolBuilder() {
 		try {
@@ -97,11 +106,20 @@ public class JsqltoolBuilder {
 			// 索引信息处理器
 			indexInfoHandlerContent = new IndexInfoHandlerContent();
 			indexInfoHandlerContent.addFirst(new JDBCIndexInfoHandler());
+			// 更新数据处理器
+			updateDataHandlerContent = new UpdateDataHandlerContent();
+			updateDataHandlerContent.addLast(new DefaultUpdateDataHandler());
+			updateDataHandlerContent.addFirst(new MySqlUpdateDataHandler());
+			updateDataHandlerContent.addFirst(new OracleUpdateDataHandler());
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 
+	}
+
+	public DBType getDbType(Connection connection) throws SQLException {
+		return DBType.getDBTypeByDriverClassName(connection.getMetaData().getDriverName());
 	}
 
 	/**
@@ -243,6 +261,18 @@ public class JsqltoolBuilder {
 
 	public void addLastSchemaHandler(IScheamHandler handler) {
 		schema.addLast(handler);
+	}
+
+	public UpdateResult updateData(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
+		return updateDataHandlerContent.update(connect, updates, force);
+	}
+
+	public void addFirstUpdateDataHandler(IUpdateDataHandler handler) {
+		updateDataHandlerContent.addFirst(handler);
+	}
+
+	public void addLastUpdateDataHandler(IUpdateDataHandler handler) {
+		updateDataHandlerContent.addLast(handler);
 	}
 
 	public List<String> listCatelog(Connection connection) {

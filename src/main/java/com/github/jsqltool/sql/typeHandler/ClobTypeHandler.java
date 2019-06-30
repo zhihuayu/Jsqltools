@@ -6,7 +6,7 @@ import java.sql.SQLException;
 
 import com.github.jsqltool.enums.JdbcType;
 
-public class ClobTypeHandler implements TypeHandler<String> {
+public class ClobTypeHandler implements TypeHandler<String, String> {
 
 	@Override
 	public String handler(ResultSet resultSet, int index, JdbcType type) throws SQLException {
@@ -30,6 +30,16 @@ public class ClobTypeHandler implements TypeHandler<String> {
 		if (type == JdbcType.CLOB)
 			return true;
 		return false;
+	}
+
+	@Override
+	public String getParam(Object obj, JdbcType type) {
+		if (obj == null)
+			return null;
+		if (obj instanceof String)
+			return (String) obj;
+		else
+			return obj.toString();
 	}
 
 }

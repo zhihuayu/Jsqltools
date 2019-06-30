@@ -39,7 +39,8 @@ public class DefaultCreateStatement implements ICreateStatement {
 			driverName = connection.getMetaData().getDriverName();
 			tableComment = tableParam.getComment();
 			// 设置create 头部信息，如：test.tableName
-			setTableInfol(tableParam);
+			tableInfo = JdbcUtil.getTableNameInfo(connection, tableParam.getCatelog(), tableParam.getSchema(),
+					tableParam.getTableName());
 			if (param == null || param.isEmpty()) {
 				throw new SqlParseException("不能解析create语句，因为没有字段参数！");
 			}
@@ -110,17 +111,6 @@ public class DefaultCreateStatement implements ICreateStatement {
 		}
 
 		return sb.toString();
-	}
-
-	private void setTableInfol(TableColumnsParam tableParam) {
-		tableInfo = "";
-		if (StringUtils.isNotBlank(tableParam.getCatelog())) {
-			tableInfo += StringUtils.trim(tableParam.getCatelog()) + ".";
-		}
-		if (StringUtils.isNotBlank(tableParam.getSchema())) {
-			tableInfo += StringUtils.trim(tableParam.getSchema()) + ".";
-		}
-		tableInfo += tableParam.getTableName();
 	}
 
 	private void setPksAndComment(List<CreateParam> param) throws SQLException {

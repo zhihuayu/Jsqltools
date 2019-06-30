@@ -1,6 +1,5 @@
 package com.github.jsqltool.sql;
 
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -10,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -194,6 +194,12 @@ public class SqlPlus {
 		}
 	}
 
+	/**
+	 * 获取列的元数据信息
+	 * 
+	 * @author yzh
+	 * @date 2019年6月29日
+	 */
 	private static List<Column> getColumns(ResultSetMetaData medaData) throws SQLException {
 		int columnCount = medaData.getColumnCount();
 		List<Column> columns = new ArrayList<Column>();
@@ -373,9 +379,11 @@ public class SqlPlus {
 	}
 
 	static class Column {
-
 		private String alias;
 		private String columnName;
+		/**
+		 * {@link Types}类型
+		 */
 		private Integer dataType;
 		private String typeName;
 		private Boolean autoIncrement;

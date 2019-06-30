@@ -7,9 +7,12 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 
-import com.github.jsqltool.enums.JdbcType;
+import org.apache.commons.lang3.StringUtils;
 
-public class DateTypeHandler implements TypeHandler<String> {
+import com.github.jsqltool.enums.JdbcType;
+import com.github.jsqltool.exception.JsqltoolParamException;
+
+public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 
 	private final static String defaultDateTimePattern = "yyyy-MM-dd HH:mm:ss";
 	private final static String defaultDatePattern = "yyyy-MM-dd";
@@ -58,6 +61,38 @@ public class DateTypeHandler implements TypeHandler<String> {
 		if (type == JdbcType.TIME || type == JdbcType.TIMESTAMP || type == JdbcType.DATE)
 			return true;
 		return false;
+	}
+
+	@Override
+	public java.util.Date getParam(Object obj, JdbcType type) {
+		try {
+			if (obj == null) {
+				return null;
+			}
+			if (obj instanceof java.util.Date)
+				return (java.util.Date) obj;
+			if (obj instanceof String) {
+				String str = StringUtils.trim((String) obj);
+				// 年月日模式
+				if (str.length() == 10) {
+					SimpleDateFormat format = new SimpleDateFormat(defaultDatePattern);
+					return format.parse(str);
+				}
+				// 时分秒模式
+				if (str.length() == 8) {
+					SimpleDateFormat format = new SimpleDateFormat(defaultTimePattern);
+					return format.parse(str);
+				}
+				// 年月日时分秒模式
+				if (str.length() == 19) {
+					SimpleDateFormat format = new SimpleDateFormat(defaultDateTimePattern);
+					return format.parse(str);
+				}
+			}
+		} catch (Exception e) {
+			throw new JsqltoolParamException(e);
+		}
+		throw new JsqltoolParamException("日期类型解析出错！");
 	}
 
 }

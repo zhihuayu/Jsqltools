@@ -34,4 +34,14 @@ public class TypeHandlerContent implements TypeHandler {
 		return true;
 	}
 
+	@Override
+	public Object getParam(Object obj, JdbcType type) {
+		for (TypeHandler handler : tableHandlers) {
+			if (handler.support(type)) {
+				return handler.getParam(obj, type);
+			}
+		}
+		return obj;
+	}
+
 }

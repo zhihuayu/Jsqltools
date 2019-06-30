@@ -200,6 +200,24 @@ public class JdbcUtil {
 	}
 
 	/**
+	 * 获取table的名称（全名）：如：databaseName.tableName
+	 * 
+	 * @author yzh
+	 * @date 2019年6月28日
+	 */
+	public static String getTableNameInfo(Connection connection, String catalog, String schema, String tableName) {
+		String tableInfo = "";
+		if (StringUtils.isNotBlank(catalog)) {
+			tableInfo += StringUtils.trim(catalog) + ".";
+		}
+		if (StringUtils.isNotBlank(schema)) {
+			tableInfo += StringUtils.trim(schema) + ".";
+		}
+		tableInfo += tableName;
+		return tableInfo;
+	}
+
+	/**
 	 * @param connection
 	 */
 	public static void close(Connection connection) {
