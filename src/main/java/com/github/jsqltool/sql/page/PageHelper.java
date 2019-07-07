@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,18 +25,37 @@ public class PageHelper {
 	private Integer page;
 	private Integer pageSize;
 	private Long count;
+	private Boolean isCount; // 是否计算总页数，默认是计算总页数的
 
 	static {
 		dialecte.put(DBType.MYSQL_TYPE, new MySqlDialect());
 		dialecte.put(DBType.ORACLE_TYPE, new OracleDialect());
 	}
 
+	public Boolean getIsCount() {
+		return isCount;
+	}
+
+	public void setIsCount(Boolean isCount) {
+		this.isCount = isCount;
+	}
+
 	public long getCountSql(Connection connect, String sql) throws SQLException {
+		if (isCount != null && !isCount) {
+			return count;
+		}
 		long result = 0L;
 		StringBuilder sb = new StringBuilder();
-		sb.append("select count(*) from (");
-		sb.append(sql);
-		sb.append(" ) temp_count");
+		sql = StringUtils.trim(sql).toLowerCase();
+		int ind = sql.indexOf("from");
+		if (ind > -1) {
+			sb.append("select count(1) ");
+			sb.append(sql.substring(ind));
+		} else {
+			sb.append("select count(*) from (");
+			sb.append(sql);
+			sb.append(" ) temp_count");
+		}
 		try (Statement statement = connect.createStatement();
 				ResultSet resultSet = statement.executeQuery(sb.toString());) {
 			ResultSetMetaData metaData = resultSet.getMetaData();

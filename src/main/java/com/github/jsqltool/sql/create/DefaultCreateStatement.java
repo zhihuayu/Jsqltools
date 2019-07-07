@@ -7,8 +7,6 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.github.jsqltool.config.JsqltoolBuilder;
-import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.exception.SqlParseException;
 import com.github.jsqltool.param.CreateParam;
 import com.github.jsqltool.param.TableColumnsParam;
@@ -253,55 +251,6 @@ public class DefaultCreateStatement implements ICreateStatement {
 		public void setColumnName(String columnName) {
 			this.columnName = columnName;
 		}
-	}
-
-	public static void main(String[] args) {
-
-		JsqltoolBuilder builder = JsqltoolBuilder.builder();
-		ConnectionInfo connectionInfo = builder.getConnectionInfo("", "测试MySql");
-		Connection connect = JdbcUtil.connect(connectionInfo);
-
-		ICreateStatement statement = new DefaultCreateStatement();
-		List<String> createTable = statement.createTable(connect, getMySqlTable(), getTestCreateParam());
-		System.out.println(createTable);
-
-	}
-
-	private static TableColumnsParam getMySqlTable() {
-		TableColumnsParam table = new TableColumnsParam();
-		table.setCatelog("test");
-		table.setComment("测试自动生成语句");
-		table.setTableName("t1");
-		return table;
-	}
-
-	private static TableColumnsParam getOracle() {
-		TableColumnsParam table = new TableColumnsParam();
-		table.setSchema("SCOTT");
-		table.setComment("测试自动生成语句");
-		table.setTableName("t1");
-		return table;
-	}
-
-	private static List<CreateParam> getTestCreateParam() {
-		List<CreateParam> list = new ArrayList<>();
-		CreateParam id = new CreateParam();
-		id.setAutoIncrement(true);
-		id.setColumnName("id");
-		id.setComment("测试id");
-		id.setType("int");
-		id.setLength(10);
-		id.setPrimaryKey(true);
-		list.add(id);
-
-		CreateParam name = new CreateParam();
-		name.setAutoIncrement(false);
-		name.setColumnName("name");
-		name.setComment("测试name");
-		name.setType("varchar");
-		name.setLength(30);
-		list.add(name);
-		return list;
 	}
 
 }

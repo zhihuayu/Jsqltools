@@ -15,11 +15,11 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.jsqltool.config.JsqltoolBuilder;
-import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.enums.JdbcType;
 import com.github.jsqltool.exception.UpdateDataException;
 import com.github.jsqltool.param.ChangeValue;
 import com.github.jsqltool.param.IndexParam;
+import com.github.jsqltool.param.SqlParam;
 import com.github.jsqltool.param.UpdateParam;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
 import com.github.jsqltool.utils.JdbcUtil;
@@ -40,7 +40,6 @@ import com.github.jsqltool.vo.UpdateResult;
 public class UpdateDataHandler {
 
 	public UpdateResult update(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
-		DBType dbType = DBType.getDBTypeByDriverClassName(connect.getMetaData().getDriverName());
 		UpdateResult updateResult = new UpdateResult();
 		long startTime = System.currentTimeMillis();
 		JsqltoolBuilder builder = JsqltoolBuilder.builder();
@@ -150,6 +149,7 @@ public class UpdateDataHandler {
 		return result;
 	}
 
+	@SuppressWarnings("rawtypes")
 	private String getSqlSet(List<Object> zwf, List<ChangeValue> values) {
 		JsqltoolBuilder builder = JsqltoolBuilder.builder();
 		TypeHandler typeHandler = builder.getTypeHandler();
@@ -183,6 +183,7 @@ public class UpdateDataHandler {
 	* @return String   返回where的sql语句
 	* @throws
 	 */
+	@SuppressWarnings("rawtypes")
 	private String getSqlWhere(List<Object> zwf, List<ChangeValue> values, Primary primayInfo) {
 		JsqltoolBuilder builder = JsqltoolBuilder.builder();
 		TypeHandler typeHandler = builder.getTypeHandler();
@@ -232,71 +233,6 @@ public class UpdateDataHandler {
 			}
 		}
 		return null;
-	}
-
-	/**
-	 * 代表一条SQL语句
-	 * 
-	 * @author yzh
-	 * @date 2019年6月28日
-	 */
-	static class SqlParam {
-
-		private Integer status;
-		private String msg;
-		private String catalog;
-		private String schema;
-		private String sql;
-		private Object[] param;
-
-		public String getSql() {
-			return sql;
-		}
-
-		public void setSql(String sql) {
-			this.sql = sql;
-		}
-
-		public Object[] getParam() {
-			return param;
-		}
-
-		public void setParam(Object[] param) {
-			this.param = param;
-		}
-
-		public Integer getStatus() {
-			return status;
-		}
-
-		public void setStatus(Integer status) {
-			this.status = status;
-		}
-
-		public String getMsg() {
-			return msg;
-		}
-
-		public void setMsg(String msg) {
-			this.msg = msg;
-		}
-
-		public String getCatalog() {
-			return catalog;
-		}
-
-		public void setCatalog(String catalog) {
-			this.catalog = catalog;
-		}
-
-		public String getSchema() {
-			return schema;
-		}
-
-		public void setSchema(String schema) {
-			this.schema = schema;
-		}
-
 	}
 
 }

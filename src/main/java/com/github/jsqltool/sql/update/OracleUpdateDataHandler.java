@@ -24,7 +24,7 @@ public class OracleUpdateDataHandler extends DefaultUpdateDataHandler {
 
 	@Override
 	public boolean support(DBType dbType) {
-		return dbType == DBType.ODBC_TYPE;
+		return dbType == DBType.ORACLE_TYPE;
 	}
 
 	@Override

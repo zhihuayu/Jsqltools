@@ -1,14 +1,12 @@
-package com.github.jsqltool.sql.update;
+package com.github.jsqltool.sql.delete;
 
 import java.util.List;
-import java.util.Objects;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.enums.JdbcType;
-import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.UpdateDataException;
 import com.github.jsqltool.param.ChangeValue;
 import com.github.jsqltool.param.UpdateParam;
@@ -22,7 +20,7 @@ import com.github.jsqltool.vo.UpdateResult;
  * @author yzh
  * @date 2019年6月30日
  */
-public class DefaultUpdateDataHandler extends AbstractUpdateDataHandler {
+public class DefaultDeleteHandler extends AbstractDeleteHandler {
 
 	@Override
 	public boolean support(DBType dbType) {
@@ -40,36 +38,6 @@ public class DefaultUpdateDataHandler extends AbstractUpdateDataHandler {
 			updateResult.setMsg(msg);
 		}
 		return updateResult;
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Override
-	protected String getSqlSet(List<Object> zwf, List<ChangeValue> values) {
-		JsqltoolBuilder builder = JsqltoolBuilder.builder();
-		TypeHandler typeHandler = builder.getTypeHandler();
-		StringBuilder sb = new StringBuilder();
-		sb.append(" set ");
-		boolean isChanged = false;
-		for (ChangeValue ch : values) {
-			Object newV = typeHandler.getParam(ch.getNewValue(), JdbcType.forCode(ch.getDataType()));
-			Object oldV = typeHandler.getParam(ch.getOldValue(), JdbcType.forCode(ch.getDataType()));
-			if (!Objects.equals(newV, oldV)) {
-				sb.append(ch.getColumnName());
-				sb.append("= ?,");
-				isChanged = true;
-				try {
-					zwf.add(typeHandler.getParam(ch.getNewValue(), JdbcType.forCode(ch.getDataType())));
-				} catch (Exception e) {
-					throw new JsqltoolParamException(ch.getColumnName() + ":" + e.getMessage());
-				}
-			}
-		}
-		if (!isChanged) {
-			throw new UpdateDataException("没有修改值");
-		}
-		// 去掉最后一个逗号
-		sb.setLength(sb.length() - 1);
-		return sb.toString();
 	}
 
 	@SuppressWarnings("rawtypes")

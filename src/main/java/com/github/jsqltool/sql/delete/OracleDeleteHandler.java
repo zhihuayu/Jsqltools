@@ -1,14 +1,12 @@
-package com.github.jsqltool.sql.update;
+package com.github.jsqltool.sql.delete;
 
 import java.util.List;
-import java.util.Objects;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.enums.JdbcType;
-import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.UpdateDataException;
 import com.github.jsqltool.param.ChangeValue;
 import com.github.jsqltool.param.UpdateParam;
@@ -18,58 +16,34 @@ import com.github.jsqltool.vo.Primary;
 import com.github.jsqltool.vo.UpdateResult;
 
 /**
- *默认的数据库数据修改处理器 
+ * Oracle数据库表数据删除处理器 
  * @author yzh
- * @date 2019年6月30日
+ * @date 2019年7月6日
  */
-public class DefaultUpdateDataHandler extends AbstractUpdateDataHandler {
+public class OracleDeleteHandler extends DefaultDeleteHandler {
 
 	@Override
 	public boolean support(DBType dbType) {
-		return true;
+		return dbType == DBType.ORACLE_TYPE;
 	}
 
 	@Override
 	protected UpdateResult beforeGeneratorSql(Primary primayInfo, UpdateParam param, UpdateResult updateResult) {
+		List<ChangeValue> values = param.getValues();
+		for (ChangeValue value : values) {
+			if (StringUtils.equalsIgnoreCase(value.getColumnName(), "ROWID")) {
+				return updateResult;
+			}
+		}
 		if (primayInfo == null) {
 			updateResult.setCode(UpdateResult.WARN);
 			String msg = updateResult.getMsg();
 			if (msg == null)
 				msg = "";
-			msg = msg + "<br>表：" + param.getTableName() + "没有主键，会修改所有数据";
+			msg = msg + "<br>表：" + param.getTableName() + "Oracle没有主键也没有ROWID，会删除所有数据";
 			updateResult.setMsg(msg);
 		}
 		return updateResult;
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Override
-	protected String getSqlSet(List<Object> zwf, List<ChangeValue> values) {
-		JsqltoolBuilder builder = JsqltoolBuilder.builder();
-		TypeHandler typeHandler = builder.getTypeHandler();
-		StringBuilder sb = new StringBuilder();
-		sb.append(" set ");
-		boolean isChanged = false;
-		for (ChangeValue ch : values) {
-			Object newV = typeHandler.getParam(ch.getNewValue(), JdbcType.forCode(ch.getDataType()));
-			Object oldV = typeHandler.getParam(ch.getOldValue(), JdbcType.forCode(ch.getDataType()));
-			if (!Objects.equals(newV, oldV)) {
-				sb.append(ch.getColumnName());
-				sb.append("= ?,");
-				isChanged = true;
-				try {
-					zwf.add(typeHandler.getParam(ch.getNewValue(), JdbcType.forCode(ch.getDataType())));
-				} catch (Exception e) {
-					throw new JsqltoolParamException(ch.getColumnName() + ":" + e.getMessage());
-				}
-			}
-		}
-		if (!isChanged) {
-			throw new UpdateDataException("没有修改值");
-		}
-		// 去掉最后一个逗号
-		sb.setLength(sb.length() - 1);
-		return sb.toString();
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -79,7 +53,15 @@ public class DefaultUpdateDataHandler extends AbstractUpdateDataHandler {
 		TypeHandler typeHandler = builder.getTypeHandler();
 		StringBuilder sb = new StringBuilder();
 		sb.append(" where ");
-		// 拼装where条件
+		// 1.查询ROWID，如果有则直接退出
+		for (ChangeValue value : values) {
+			if (StringUtils.equalsIgnoreCase(value.getColumnName(), "ROWID")) {
+				sb.append(" ROWID = ?");
+				zwf.add(value.getOldValue());
+				return sb.toString();
+			}
+		}
+		// 2.或者查询主键
 		if (primayInfo != null) {
 			List<IndexColumn> columns = primayInfo.getColumns();
 			for (IndexColumn index : columns) {
@@ -100,7 +82,7 @@ public class DefaultUpdateDataHandler extends AbstractUpdateDataHandler {
 			}
 			sb.setLength(sb.length() - 4);
 		} else {
-			// 没有主键则拼装所有的值
+			// 3.没有主键则拼装所有的值
 			for (ChangeValue ch : values) {
 				sb.append(ch.getColumnName());
 				if (ch.getOldValue() == null) {

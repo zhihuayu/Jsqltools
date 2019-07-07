@@ -30,9 +30,17 @@ import com.github.jsqltool.sql.TableColumnInfo;
 import com.github.jsqltool.sql.catelog.CatelogHandlerContent;
 import com.github.jsqltool.sql.catelog.DefaultCatelogHandler;
 import com.github.jsqltool.sql.catelog.ICatelogHandler;
+import com.github.jsqltool.sql.delete.DefaultDeleteHandler;
+import com.github.jsqltool.sql.delete.DeleteHandlerContent;
+import com.github.jsqltool.sql.delete.IdeleteHandler;
+import com.github.jsqltool.sql.delete.MySqlDeleteHandler;
+import com.github.jsqltool.sql.delete.OracleDeleteHandler;
 import com.github.jsqltool.sql.index.IIndexInfoHandler;
 import com.github.jsqltool.sql.index.IndexInfoHandlerContent;
 import com.github.jsqltool.sql.index.JDBCIndexInfoHandler;
+import com.github.jsqltool.sql.insert.DefaultInsertHandler;
+import com.github.jsqltool.sql.insert.IinertHandler;
+import com.github.jsqltool.sql.insert.InsertHandlerContent;
 import com.github.jsqltool.sql.schema.DefaultSchemaHandler;
 import com.github.jsqltool.sql.schema.IScheamHandler;
 import com.github.jsqltool.sql.schema.SchemaHandlerContent;
@@ -44,6 +52,9 @@ import com.github.jsqltool.sql.tableColumn.ITableColumnHandler;
 import com.github.jsqltool.sql.tableColumn.TableColumnHandlerContent;
 import com.github.jsqltool.sql.typeHandler.ClobTypeHandler;
 import com.github.jsqltool.sql.typeHandler.DateTypeHandler;
+import com.github.jsqltool.sql.typeHandler.IntegerTypeHandler;
+import com.github.jsqltool.sql.typeHandler.LongTypeHandler;
+import com.github.jsqltool.sql.typeHandler.NumberTypeHandler;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
 import com.github.jsqltool.sql.typeHandler.TypeHandlerContent;
 import com.github.jsqltool.sql.update.DefaultUpdateDataHandler;
@@ -75,6 +86,10 @@ public class JsqltoolBuilder {
 	private final IndexInfoHandlerContent indexInfoHandlerContent;
 	// 更新数据处理器
 	private final UpdateDataHandlerContent updateDataHandlerContent;
+	// 插入数据处理器
+	private final InsertHandlerContent insertHandlerContent;
+	// 删除数据处理器
+	private final DeleteHandlerContent deleteHandlerContent;
 
 	private JsqltoolBuilder() {
 		try {
@@ -101,6 +116,9 @@ public class JsqltoolBuilder {
 			tableColumn.addLast(new DefaultTableColumnHandler());
 			// 初始化类型处理器
 			typeHandlerContent = new TypeHandlerContent();
+			typeHandlerContent.addFirst(new NumberTypeHandler());
+			typeHandlerContent.addFirst(new LongTypeHandler());
+			typeHandlerContent.addFirst(new IntegerTypeHandler());
 			typeHandlerContent.addFirst(new DateTypeHandler());
 			typeHandlerContent.addFirst(new ClobTypeHandler());
 			// 索引信息处理器
@@ -111,6 +129,14 @@ public class JsqltoolBuilder {
 			updateDataHandlerContent.addLast(new DefaultUpdateDataHandler());
 			updateDataHandlerContent.addFirst(new MySqlUpdateDataHandler());
 			updateDataHandlerContent.addFirst(new OracleUpdateDataHandler());
+			// 插入数据处理器
+			insertHandlerContent = new InsertHandlerContent();
+			insertHandlerContent.addFirst(new DefaultInsertHandler());
+			// 删除数据处理器
+			deleteHandlerContent = new DeleteHandlerContent();
+			deleteHandlerContent.addLast(new DefaultDeleteHandler());
+			deleteHandlerContent.addFirst(new MySqlDeleteHandler());
+			deleteHandlerContent.addFirst(new OracleDeleteHandler());
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -179,7 +205,7 @@ public class JsqltoolBuilder {
 			}
 			SqlPlus.execute(connect, "use " + param.getCatelog());
 		}
-		SqlPlus.setPage(param.getPage(), param.getPageSize(),
+		SqlPlus.setPage(param.getPage(), param.getPageSize(), param.getCount(), param.getIsCount(),
 				DBType.getDBTypeByDriverClassName(metaData.getDriverName()));
 		return SqlPlus.execute(connect, param.getSql());
 	}
@@ -261,6 +287,30 @@ public class JsqltoolBuilder {
 
 	public void addLastSchemaHandler(IScheamHandler handler) {
 		schema.addLast(handler);
+	}
+
+	public UpdateResult delete(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
+		return deleteHandlerContent.delete(connect, updates, force);
+	}
+
+	public void addFirstDeleteHandler(IdeleteHandler handler) {
+		deleteHandlerContent.addFirst(handler);
+	}
+
+	public void addLastDeleteHandler(IdeleteHandler handler) {
+		deleteHandlerContent.addLast(handler);
+	}
+
+	public UpdateResult insert(Connection connect, List<UpdateParam> updates) throws SQLException {
+		return insertHandlerContent.insert(connect, updates);
+	}
+
+	public void addFirstInsertHandler(IinertHandler handler) {
+		insertHandlerContent.addFirst(handler);
+	}
+
+	public void addLastInsertHandler(IinertHandler handler) {
+		insertHandlerContent.addLast(handler);
 	}
 
 	public UpdateResult updateData(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {

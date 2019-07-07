@@ -1,4 +1,4 @@
-package com.github.jsqltool.sql.update;
+package com.github.jsqltool.sql.delete;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -22,14 +22,14 @@ import com.github.jsqltool.utils.JdbcUtil;
 import com.github.jsqltool.vo.Primary;
 import com.github.jsqltool.vo.UpdateResult;
 
-public abstract class AbstractUpdateDataHandler implements IUpdateDataHandler {
+public abstract class AbstractDeleteHandler implements IdeleteHandler {
 
 	@Override
-	final public UpdateResult update(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
+	final public UpdateResult delete(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
 		UpdateResult updateResult = new UpdateResult();
 		JsqltoolBuilder builder = JsqltoolBuilder.builder();
 		if (updates == null || updates.isEmpty()) {
-			throw new UpdateDataException("更新的数据为空");
+			throw new UpdateDataException("删除的数据为空");
 		}
 		Set<String> tables = new HashSet<>();
 		for (UpdateParam u : updates) {
@@ -87,15 +87,12 @@ public abstract class AbstractUpdateDataHandler implements IUpdateDataHandler {
 
 	private SqlParam getSqlParam(Connection connect, UpdateParam param, Primary primayInfo) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("update ");
+		sb.append("delete from ");
 		String tableInfo = JdbcUtil.getTableNameInfo(connect, param.getCatalog(), param.getSchema(),
 				param.getTableName());
 		sb.append(tableInfo);
 		List<ChangeValue> values = param.getValues();
 		List<Object> zwf = new ArrayList<>();
-		// 拼装set值
-		String set = getSqlSet(zwf, values);
-		sb.append(set);
 		// 拼装where条件
 		String where = getSqlWhere(zwf, values, primayInfo);
 		sb.append(where);
@@ -120,8 +117,6 @@ public abstract class AbstractUpdateDataHandler implements IUpdateDataHandler {
 	 */
 	protected void afterSqlGenerator(StringBuilder sb) {
 	}
-
-	protected abstract String getSqlSet(List<Object> zwf, List<ChangeValue> values);
 
 	/**
 	 * 

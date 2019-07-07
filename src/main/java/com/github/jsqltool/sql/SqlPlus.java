@@ -4,26 +4,38 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.alibaba.druid.pool.DruidPooledConnection;
 import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.enums.JdbcType;
+import com.github.jsqltool.exception.JsqltoolParamException;
+import com.github.jsqltool.param.SqlParam;
 import com.github.jsqltool.sql.page.PageHelper;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
 import com.github.jsqltool.utils.JdbcUtil;
 import com.github.jsqltool.utils.ProfileUtil;
+import com.github.jsqltool.vo.UpdateResult;
 
 public class SqlPlus {
 
@@ -44,7 +56,16 @@ public class SqlPlus {
 	}
 
 	public static void setPage(Integer page, Integer pageSize, DBType type) {
+		setPage(page, pageSize, null, true, type);
+	}
+
+	public static void setPage(Integer page, Integer pageSize, Long count, Boolean isCount, DBType type) {
 		PageHelper helper = new PageHelper();
+		helper.setCount(count);
+		if (isCount != null)
+			helper.setIsCount(isCount);
+		else
+			helper.setIsCount(true);
 		if (page == null || pageSize == null || page.compareTo(0) <= 0 || pageSize.compareTo(0) <= 0) {
 			helper.setPage(1);
 			helper.setPageSize(100);
@@ -56,6 +77,86 @@ public class SqlPlus {
 		pageHelper.set(helper);
 	}
 
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月6日
+	* @Description:  用以执行预编译的语句
+	*  @param connect
+	*  @param sqls
+	*  @return
+	*  @throws SQLException    参数
+	* @return UpdateResult   
+	* @throws
+	 */
+	public static UpdateResult excutePrepareStatement(Connection connect, Map<String, List<SqlParam>> sqls)
+			throws SQLException {
+		DBType dbType = DBType.getDBTypeByDriverClassName(connect.getMetaData().getDriverName());
+		int effectRowsResult = 0;
+		long startTime = System.currentTimeMillis();
+		Set<Entry<String, List<SqlParam>>> entrySet = sqls.entrySet();
+		for (Entry<String, List<SqlParam>> entry : entrySet) {
+			List<SqlParam> value = entry.getValue();
+			for (SqlParam sql : value) {
+				PreparedStatement prepareStatement = connect.prepareStatement(sql.getSql());
+				Object[] param = sql.getParam();
+				for (int i = 0; i < param.length; i++) {
+					try {
+						Object obj = processObj(connect, dbType, param[i]);
+						prepareStatement.setObject(i + 1, obj);
+					} catch (Exception e) {
+						throw new JsqltoolParamException(param[i] + ":" + e.getMessage(), e);
+					}
+				}
+				int effectRows = prepareStatement.executeUpdate();
+				effectRowsResult += effectRows;
+				System.out.println(sql.getSql() + "影响的行数：" + effectRows);
+			}
+			JdbcUtil.commit(connect);
+		}
+		UpdateResult updateResult = new UpdateResult();
+		updateResult.setEffectRows(effectRowsResult);
+		long endTime = System.currentTimeMillis();
+		updateResult.setCode(UpdateResult.OK);
+		updateResult.setMsg("执行成功");
+		updateResult.setTime(endTime - startTime);
+		return updateResult;
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月7日
+	* @Description: 处理预编译的SQL的入参
+	*  @param dbType
+	*  @param object
+	*  @return    参数
+	* @return Object    返回类型
+	* @throws
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private static Object processObj(Connection connect, DBType dbType, Object object)
+			throws NoSuchMethodException, SecurityException, ClassNotFoundException, InstantiationException,
+			IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+		if (object == null) {
+			return null;
+		}
+		if (object instanceof Date && DBType.ORACLE_TYPE == dbType) {
+			if (connect instanceof DruidPooledConnection) {
+				Connection connection = ((DruidPooledConnection) connect).getConnection();
+				if (connection.getClass().getName().equals("oracle.jdbc.driver.T4CConnection")) {
+					Class clazz = Class.forName("oracle.jdbc.OracleConnectionWrapper");
+					Constructor constructor = clazz.getConstructor(Class.forName("oracle.jdbc.OracleConnection"));
+					Object oracleConnectionWrapper = constructor.newInstance(connection);
+					Method method = clazz.getMethod("createDATE", object.getClass());
+					Object invoke = method.invoke(oracleConnectionWrapper, object);
+					return invoke;
+				}
+			}
+		}
+		return object;
+	}
+
 	public static SqlResult execute(Connection connection, String sql) {
 		return execute(connection, new StringReader(sql));
 	}
@@ -64,16 +165,13 @@ public class SqlPlus {
 		int status = 200;
 		StringBuilder result = new StringBuilder();
 		Statement statement = null;
-
 		try {
 			BufferedReader bufferedReader = null;
-
 			if (reader instanceof BufferedReader) {
 				bufferedReader = (BufferedReader) reader;
 			} else {
 				bufferedReader = new BufferedReader(reader);
 			}
-
 			String sql = null;
 			statement = connection.createStatement();
 
@@ -169,13 +267,16 @@ public class SqlPlus {
 		try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(sql);) {
 			ResultSetMetaData medaData = resultSet.getMetaData();
 			List<Column> columns = getColumns(medaData);
-			List<Record> records = getRecords(resultSet, page.getPageSize());
-			SqlResult sqlResult = SqlResult.success("success");
+			List<Record> records = getRecords(resultSet);
+			SqlResult sqlResult = SqlResult.success("status：success");
 			sqlResult.setColumns(columns);
 			sqlResult.setRecords(records);
 			sqlResult.setCount(count);
 			long endTime = System.currentTimeMillis();
 			logger.debug("execute sql {} times:{}ms", sql, endTime - startTime);
+			String message = sqlResult.getMessage();
+			message += "，用时：" + (endTime - startTime) + "ms";
+			sqlResult.setMessage(message);
 			if (page != null) {
 				sqlResult.setPage(page.getPage());
 				sqlResult.setPageSize(page.getPageSize());
@@ -223,8 +324,7 @@ public class SqlPlus {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private static List<Record> getRecords(ResultSet resultSet, int size) throws SQLException {
-		int rows = 0;
+	private static List<Record> getRecords(ResultSet resultSet) throws SQLException {
 		List<Record> records = new ArrayList<Record>();
 		ResultSetMetaData metaData = resultSet.getMetaData();
 		int columnCount = metaData.getColumnCount();
@@ -243,10 +343,6 @@ public class SqlPlus {
 				}
 			}
 			records.add(new Record(values));
-			rows++;
-			if (rows >= size) {
-				break;
-			}
 		}
 		return records;
 	}
@@ -460,6 +556,7 @@ public class SqlPlus {
 		SqlResult execute2 = execute(connect, sql);
 		System.out.println(execute2);
 		JdbcUtil.close(connect);
+
 	}
 
 }

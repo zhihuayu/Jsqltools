@@ -11,6 +11,8 @@ public class ExecutorSqlParam {
 	private String schema;
 	private String sql;
 	// 以下为分页参数
+	private Long count;
+	private Boolean isCount; // 是否查询总数
 	private Integer page;
 	private Integer pageSize; // 默认值为1000
 
@@ -52,6 +54,22 @@ public class ExecutorSqlParam {
 
 	public void setSql(String sql) {
 		this.sql = sql;
+	}
+
+	public Long getCount() {
+		return count;
+	}
+
+	public void setCount(Long count) {
+		this.count = count;
+	}
+
+	public Boolean getIsCount() {
+		return isCount;
+	}
+
+	public void setIsCount(Boolean isCount) {
+		this.isCount = isCount;
 	}
 
 }

@@ -76,18 +76,22 @@ public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 				// 年月日模式
 				if (str.length() == 10) {
 					SimpleDateFormat format = new SimpleDateFormat(defaultDatePattern);
-					return format.parse(str);
+					java.util.Date parse = format.parse(str);
+					return new Date(parse.getTime());
 				}
 				// 时分秒模式
 				if (str.length() == 8) {
 					SimpleDateFormat format = new SimpleDateFormat(defaultTimePattern);
-					return format.parse(str);
+					java.util.Date parse = format.parse(str);
+					return new Time(parse.getTime());
 				}
 				// 年月日时分秒模式
 				if (str.length() == 19) {
 					SimpleDateFormat format = new SimpleDateFormat(defaultDateTimePattern);
-					return format.parse(str);
+					java.util.Date parse = format.parse(str);
+					return new Timestamp(parse.getTime());
 				}
+				return null;
 			}
 		} catch (Exception e) {
 			throw new JsqltoolParamException(e);
