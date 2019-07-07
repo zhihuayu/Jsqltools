@@ -21,20 +21,21 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import javax.sql.PooledConnection;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.alibaba.druid.pool.DruidPooledConnection;
 import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.enums.JdbcType;
 import com.github.jsqltool.exception.JsqltoolParamException;
+import com.github.jsqltool.model.IModel;
 import com.github.jsqltool.param.SqlParam;
 import com.github.jsqltool.sql.page.PageHelper;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
 import com.github.jsqltool.utils.JdbcUtil;
-import com.github.jsqltool.utils.ProfileUtil;
 import com.github.jsqltool.vo.UpdateResult;
 
 public class SqlPlus {
@@ -81,7 +82,7 @@ public class SqlPlus {
 	 * 
 	* @author yzh
 	* @date 2019年7月6日
-	* @Description:  用以执行预编译的语句
+	* @Description:  用以执行预编译的语句(非查询类)
 	*  @param connect
 	*  @param sqls
 	*  @return
@@ -124,7 +125,6 @@ public class SqlPlus {
 	}
 
 	/**
-	 * 
 	* @author yzh
 	* @date 2019年7月7日
 	* @Description: 处理预编译的SQL的入参
@@ -137,13 +137,13 @@ public class SqlPlus {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private static Object processObj(Connection connect, DBType dbType, Object object)
 			throws NoSuchMethodException, SecurityException, ClassNotFoundException, InstantiationException,
-			IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+			IllegalAccessException, IllegalArgumentException, InvocationTargetException, SQLException {
 		if (object == null) {
 			return null;
 		}
 		if (object instanceof Date && DBType.ORACLE_TYPE == dbType) {
-			if (connect instanceof DruidPooledConnection) {
-				Connection connection = ((DruidPooledConnection) connect).getConnection();
+			if (connect instanceof PooledConnection) {
+				Connection connection = ((PooledConnection) connect).getConnection();
 				if (connection.getClass().getName().equals("oracle.jdbc.driver.T4CConnection")) {
 					Class clazz = Class.forName("oracle.jdbc.OracleConnectionWrapper");
 					Constructor constructor = clazz.getConstructor(Class.forName("oracle.jdbc.OracleConnection"));
@@ -474,7 +474,7 @@ public class SqlPlus {
 		}
 	}
 
-	static class Column {
+	public static class Column {
 		private String alias;
 		private String columnName;
 		/**
@@ -526,7 +526,7 @@ public class SqlPlus {
 
 	}
 
-	static class Record {
+	public static class Record {
 
 		private List<Object> values;
 
@@ -548,7 +548,8 @@ public class SqlPlus {
 	}
 
 	public static void main(String[] args) throws IOException {
-		ConnectionInfo loadConnectionInfo = ProfileUtil.loadConnectionInfo("", "测试MySql");
+		IModel model = JsqltoolBuilder.builder().getModel();
+		ConnectionInfo loadConnectionInfo = model.getConnectionInfo("", "测试MySql");
 		Connection connect = JdbcUtil.connect(loadConnectionInfo);
 		SqlResult execute = execute(connect, "use test");
 		System.out.println(execute);

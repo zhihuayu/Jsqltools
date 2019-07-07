@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.enums.DBType;
+import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.SqlExecuteException;
 import com.github.jsqltool.model.DatabaseModel;
 import com.github.jsqltool.model.IModel;
@@ -93,14 +94,21 @@ public class JsqltoolBuilder {
 
 	private JsqltoolBuilder() {
 		try {
-			InputStream config = JsqltoolBuilder.class.getResourceAsStream("config.properties");
+			InputStream config = JsqltoolBuilder.class.getResourceAsStream("/jsqltool.properties");
 			Properties prop = new Properties();
 			prop.load(config);
 			String m = prop.getProperty("jsqltool.model");
 			if (StringUtils.equalsIgnoreCase(m, "databaseProfile")) {
-				model = new DatabaseModel();
+				String driverClassName = prop.getProperty("jsqltool.databaseProfile.className");
+				String url = prop.getProperty("jsqltool.databaseProfile.url");
+				String userName = prop.getProperty("jsqltool.databaseProfile.username");
+				String password = prop.getProperty("jsqltool.databaseProfile.password");
+				if (!StringUtils.isNoneBlank(driverClassName, url, userName, password)) {
+					throw new JsqltoolParamException("JsqltoolBuilder创建失败，请检查数据库相关参数!");
+				}
+				model = new DatabaseModel(driverClassName, url, userName, password);
 			} else {
-				model = new ProfileModel();
+				model = new ProfileModel(prop.getProperty("jsqltool.profiles.filePath"));
 			}
 			// 初始化CatelogHandlerContent实例
 			catelog = new CatelogHandlerContent();
@@ -224,12 +232,36 @@ public class JsqltoolBuilder {
 		return JdbcUtil.connect(user, connectionName);
 	}
 
+	public Connection connect(ConnectionInfo info) {
+		return JdbcUtil.connect(info);
+	}
+
 	public void close(Connection connection) {
 		JdbcUtil.close(connection);
 	}
 
 	public List<String> listAllConnectionName(String user) {
 		return model.listConnection(user);
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月7日
+	* @Description:  保存连接信息
+	 */
+	public boolean saveConnectionInfo(String user, ConnectionInfo info) {
+		return model.save(user, info);
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月7日
+	* @Description:  删除
+	 */
+	public boolean deleteConnectionInfo(String user, String connectionName) {
+		return model.delete(user, connectionName);
 	}
 
 	public List<SimpleTableInfo> listTable(Connection connection, TablesParam param) {
@@ -355,6 +387,10 @@ public class JsqltoolBuilder {
 
 	public static JsqltoolBuilder builder() {
 		return Builder.instance;
+	}
+
+	public IModel getModel() {
+		return model;
 	}
 
 }
