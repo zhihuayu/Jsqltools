@@ -2,6 +2,7 @@ package com.github.jsqltool.model;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.exception.CannotFindProfileException;
@@ -11,8 +12,8 @@ public class ProfileModel implements IModel {
 
 	private final FileProfile fileProfile;
 
-	public ProfileModel(String path) {
-		fileProfile = new FileProfile(path);
+	public ProfileModel(Properties prop) {
+		fileProfile = new FileProfile(prop);
 	}
 
 	@Override
@@ -21,9 +22,9 @@ public class ProfileModel implements IModel {
 	}
 
 	@Override
-	public boolean save(String user, ConnectionInfo info) {
+	public boolean save(String user, String oldConnectionName, ConnectionInfo info) {
 		try {
-			fileProfile.saveConnectionInfo(user, info);
+			fileProfile.saveConnectionInfo(user, oldConnectionName, info);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -41,7 +42,7 @@ public class ProfileModel implements IModel {
 
 	@Override
 	public boolean delete(String user, String connectionName) {
-		return false;
+		return fileProfile.delete(user,connectionName);
 	}
 
 }

@@ -2,6 +2,7 @@ package com.github.jsqltool.model;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Properties;
 
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.exception.JsqltoolParamException;
@@ -11,8 +12,12 @@ public class DatabaseModel implements IModel {
 
 	private final DataBaseProfile profile;
 
+	public DatabaseModel(Properties prop) {
+		this.profile = new DataBaseProfile(prop);
+	}
+
 	public DatabaseModel(String driverClassName, String url, String userName, String password) {
-		this.profile = new DataBaseProfile(null, driverClassName, url, userName, password);
+		this.profile = new DataBaseProfile(driverClassName, url, userName, password);
 	}
 
 	@Override
@@ -25,9 +30,9 @@ public class DatabaseModel implements IModel {
 	}
 
 	@Override
-	public boolean save(String user, ConnectionInfo info) {
+	public boolean save(String user, String oldConnectionName, ConnectionInfo info) {
 		try {
-			return profile.save(user, info);
+			return profile.save(user, oldConnectionName, info);
 		} catch (SQLException e) {
 			throw new JsqltoolParamException(e);
 		}

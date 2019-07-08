@@ -13,13 +13,18 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.exception.CannotFindProfileException;
+import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.ProfileParserException;
 
 public class FileProfile {
 
 	private final String filePath;
 
-	public FileProfile(String filePath) {
+	public FileProfile(Properties prop) {
+		if (prop == null) {
+			throw new JsqltoolParamException("Jsqltool配置文件不存在！!");
+		}
+		String filePath = prop.getProperty("jsqltool.profiles.filePath");
 		if (StringUtils.isBlank(filePath)) {
 			this.filePath = "/dbProfile";
 		} else {
@@ -68,18 +73,23 @@ public class FileProfile {
 
 	public ConnectionInfo loadConnectionInfo(String userName, String name) throws IOException {
 		InputStream in = null;
-		if (StringUtils.isBlank(userName)) {
-			in = this.getClass().getResourceAsStream(filePath + "/" + name + ".properties");
-		} else {
-			in = this.getClass().getResourceAsStream(filePath + "/" + userName + "/" + name + ".properties");
+		try {
+			if (StringUtils.isBlank(userName)) {
+				in = this.getClass().getResourceAsStream(filePath + "/" + name + ".properties");
+			} else {
+				in = this.getClass().getResourceAsStream(filePath + "/" + userName + "/" + name + ".properties");
+			}
+			if (in == null) {
+				throw new CannotFindProfileException("不能找到对应的属性文件：" + name + ".properties");
+			}
+			Properties properties = new Properties();
+			properties.load(in);
+			ConnectionInfo info = convertToConnectionInfo(name, properties);
+			return info;
+		} finally {
+			if (in != null)
+				in.close();
 		}
-		if (in == null) {
-			throw new CannotFindProfileException("不能找到对应的属性文件：" + name + ".properties");
-		}
-		Properties properties = new Properties();
-		properties.load(in);
-		ConnectionInfo info = convertToConnectionInfo(name, properties);
-		return info;
 	}
 
 	private ConnectionInfo convertToConnectionInfo(String name, Properties properties) {
@@ -99,7 +109,7 @@ public class FileProfile {
 		return info;
 	}
 
-	public void saveConnectionInfo(String owner, ConnectionInfo info) throws IOException {
+	public void saveConnectionInfo(String owner, String oldConnectionName, ConnectionInfo info) throws IOException {
 		Properties properties = new Properties();
 		String name = info.getName();
 		String className = info.getDriverClassName();
@@ -122,8 +132,35 @@ public class FileProfile {
 		if (!file.exists()) {
 			file.mkdirs();
 		}
-		file = new File(file, name + ".properties");
-		properties.store(new FileOutputStream(file), "数据库配置文件");
+		// 删除老版的文件
+		if (StringUtils.isNotBlank(oldConnectionName)) {
+			File oldFile = new File(file, oldConnectionName + ".properties");
+			if (oldFile.exists()) {
+				oldFile.deleteOnExit();
+			}
+		}
+		File nfile = new File(file, name + ".properties");
+		try (FileOutputStream out = new FileOutputStream(nfile);) {
+			properties.store(out, "数据库配置文件");
+		}
+	}
+
+	public boolean delete(String user, String connectionName) {
+		URL resource = null;
+		if (StringUtils.isBlank(user)) {
+			resource = FileProfile.class.getResource(filePath);
+		} else {
+			resource = FileProfile.class.getResource(filePath + "/" + user);
+		}
+		if (StringUtils.isBlank(connectionName)) {
+			throw new ProfileParserException("connectionName参数不能为空");
+		}
+		File file = new File(resource.getFile(), connectionName.trim() + ".properties");
+		if (file.exists()) {
+			return file.delete();
+		} else {
+			throw new ProfileParserException("连接信息不存在！");
+		}
 	}
 
 }

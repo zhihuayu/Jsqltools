@@ -10,7 +10,7 @@ public interface IModel {
 
 	ConnectionInfo getConnectionInfo(String user, String connectionName);
 
-	boolean save(String user, ConnectionInfo info);
+	boolean save(String user, String oldConnectionName, ConnectionInfo info);
 
 	boolean delete(String user, String connectionName);
 

@@ -2,6 +2,7 @@ package com.github.jsqltool.config;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.enums.DBType;
+import com.github.jsqltool.exception.JsqltoolBuildException;
 import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.SqlExecuteException;
 import com.github.jsqltool.model.DatabaseModel;
@@ -92,24 +94,52 @@ public class JsqltoolBuilder {
 	// 删除数据处理器
 	private final DeleteHandlerContent deleteHandlerContent;
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private JsqltoolBuilder() {
+		InputStream config = null;
 		try {
-			InputStream config = JsqltoolBuilder.class.getResourceAsStream("/jsqltool.properties");
+			config = JsqltoolBuilder.class.getResourceAsStream("/jsqltool.properties");
 			Properties prop = new Properties();
 			prop.load(config);
-			String m = prop.getProperty("jsqltool.model");
-			if (StringUtils.equalsIgnoreCase(m, "databaseProfile")) {
-				String driverClassName = prop.getProperty("jsqltool.databaseProfile.className");
-				String url = prop.getProperty("jsqltool.databaseProfile.url");
-				String userName = prop.getProperty("jsqltool.databaseProfile.username");
-				String password = prop.getProperty("jsqltool.databaseProfile.password");
-				if (!StringUtils.isNoneBlank(driverClassName, url, userName, password)) {
-					throw new JsqltoolParamException("JsqltoolBuilder创建失败，请检查数据库相关参数!");
+			// 检查jsqltool.model.customeClass属性是否存在，如果存在则使用自定义模式
+			String customerModel = prop.getProperty("jsqltool.model.customeClass");
+			if (StringUtils.isBlank(customerModel)) {
+				// 内置模式
+				String m = prop.getProperty("jsqltool.model");
+				if (StringUtils.equalsIgnoreCase(m, "databaseProfile")) {
+					model = new DatabaseModel(prop);
+				} else {
+					model = new ProfileModel(prop);
 				}
-				model = new DatabaseModel(driverClassName, url, userName, password);
 			} else {
-				model = new ProfileModel(prop.getProperty("jsqltool.profiles.filePath"));
+				// 自定义模式
+				try {
+					Class clazz = Class.forName(customerModel);
+					if (IModel.class.isAssignableFrom(clazz)) {
+						Constructor constructor = null;
+						try {
+							constructor = clazz.getConstructor(Properties.class);
+						} catch (NoSuchMethodException | SecurityException e) {
+						}
+						try {
+							if (constructor == null) {
+								model = (IModel) clazz.newInstance();
+							} else {
+								model = (IModel) constructor.newInstance(prop);
+							}
+						} catch (Exception e) {
+							throw new JsqltoolParamException(customerModel + "实例化失败！");
+						}
+
+					} else {
+						throw new JsqltoolParamException(customerModel + "必须实现com.github.jsqltool.model.IModel接口！");
+					}
+				} catch (ClassNotFoundException e) {
+					throw new JsqltoolParamException(customerModel + "不存在", e);
+				}
+
 			}
+
 			// 初始化CatelogHandlerContent实例
 			catelog = new CatelogHandlerContent();
 			catelog.addLast(new DefaultCatelogHandler());
@@ -145,9 +175,17 @@ public class JsqltoolBuilder {
 			deleteHandlerContent.addLast(new DefaultDeleteHandler());
 			deleteHandlerContent.addFirst(new MySqlDeleteHandler());
 			deleteHandlerContent.addFirst(new OracleDeleteHandler());
-
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			throw new JsqltoolBuildException("JsqltoolBuilder创建失败", e);
+		} finally {
+			if (config != null) {
+				try {
+					config.close();
+				} catch (IOException e) {
+					throw new JsqltoolBuildException("JsqltoolBuilder创建失败", e);
+				}
+			}
+
 		}
 
 	}
@@ -250,8 +288,8 @@ public class JsqltoolBuilder {
 	* @date 2019年7月7日
 	* @Description:  保存连接信息
 	 */
-	public boolean saveConnectionInfo(String user, ConnectionInfo info) {
-		return model.save(user, info);
+	public boolean saveConnectionInfo(String user, String oldConnectionName, ConnectionInfo info) {
+		return model.save(user, oldConnectionName, info);
 	}
 
 	/**
@@ -262,6 +300,16 @@ public class JsqltoolBuilder {
 	 */
 	public boolean deleteConnectionInfo(String user, String connectionName) {
 		return model.delete(user, connectionName);
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月8日
+	* @Description: 获取connectionInfo信息
+	 */
+	public ConnectionInfo getConnectionInfo(String user, String connectionName) {
+		return model.getConnectionInfo(user, connectionName);
 	}
 
 	public List<SimpleTableInfo> listTable(Connection connection, TablesParam param) {
@@ -375,10 +423,6 @@ public class JsqltoolBuilder {
 
 	public void addLastIndexInfoHandler(IIndexInfoHandler handler) {
 		indexInfoHandlerContent.addLast(handler);
-	}
-
-	public ConnectionInfo getConnectionInfo(String user, String connectionName) {
-		return model.getConnectionInfo(user, connectionName);
 	}
 
 	static class Builder {

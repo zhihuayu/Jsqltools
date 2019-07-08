@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -19,20 +20,29 @@ import com.github.jsqltool.utils.JdbcUtil;
 
 public class DataBaseProfile {
 
-	private final static String tableName = "t_jsqltool_connection_info";
-	private String createTableSql = "create table " + tableName + " (id int primary key ,\r\n"
-			+ "  f_user varchar(30) not null ,\r\n" + "  f_name varchar(30) not null,\r\n"
-			+ "  driver_class_name varchar(60) not null ,\r\n" + "  f_url varchar(128) not null,\r\n"
-			+ "  user_name varchar(30),\r\n" + "  pwd varchar(60),\r\n"
-			+ " CONSTRAINT index_unique unique(f_user,f_name)\r\n" + "  )";
-
+	// 默认为：t_jsqltool_connection_info，如果配置jsqltool.databaseProfile.tableName属性，则使用该属性的值
+	private final String tableName;
 	private final ConnectionInfo connectionInfo;
 
 	private final Object lock = new Object();
 
-	public DataBaseProfile(String name, String driverClassName, String url, String userName, String password) {
+	public DataBaseProfile(Properties prop) {
+		if (prop == null) {
+			throw new JsqltoolParamException("Jsqltool配置文件不存在！!");
+		}
+		String driverClassName = prop.getProperty("jsqltool.databaseProfile.className");
+		String url = prop.getProperty("jsqltool.databaseProfile.url");
+		String userName = prop.getProperty("jsqltool.databaseProfile.username");
+		String password = prop.getProperty("jsqltool.databaseProfile.password");
+		if (!StringUtils.isNoneBlank(driverClassName, url, userName, password)) {
+			throw new JsqltoolParamException("JsqltoolBuilder创建失败，请检查数据库相关参数!");
+		}
+		String tN = prop.getProperty("jsqltool.databaseProfile.tableName");
+		if (StringUtils.isBlank(tN))
+			tableName = "t_jsqltool_connection_info";
+		else
+			tableName = StringUtils.trim(tN);
 		this.connectionInfo = new ConnectionInfo();
-		this.connectionInfo.setName(StringUtils.trim(name));
 		this.connectionInfo.setDriverClassName(StringUtils.trim(driverClassName));
 		this.connectionInfo.setUrl(StringUtils.trim(url));
 		this.connectionInfo.setUserName(StringUtils.trim(userName));
@@ -40,8 +50,19 @@ public class DataBaseProfile {
 		init();
 	}
 
+	public DataBaseProfile(String driverClassName, String url, String userName, String password) {
+		this.connectionInfo = new ConnectionInfo();
+		this.connectionInfo.setDriverClassName(StringUtils.trim(driverClassName));
+		this.connectionInfo.setUrl(StringUtils.trim(url));
+		this.connectionInfo.setUserName(StringUtils.trim(userName));
+		this.connectionInfo.setPassword(StringUtils.trim(password));
+		tableName = "t_jsqltool_connection_info";
+		init();
+	}
+
 	public DataBaseProfile(ConnectionInfo connectionInfo) {
 		this.connectionInfo = connectionInfo;
+		tableName = "t_jsqltool_connection_info";
 		init();
 	}
 
@@ -71,11 +92,13 @@ public class DataBaseProfile {
 		}
 	}
 
-	public boolean save(String user, ConnectionInfo info) throws SQLException {
+	public boolean save(String user, String oldConnectionName, ConnectionInfo info) throws SQLException {
 		try (Connection connect = JsqltoolBuilder.builder().connect(connectionInfo);) {
 			synchronized (lock) {
 				// 1.检查id是否已经存在
-				Integer id = getIdByConnectionInfo(connect, user, info);
+				Integer id = null;
+				if (StringUtils.isNotBlank(oldConnectionName))
+					id = getIdByConnectionInfo(connect, user, oldConnectionName);
 				if (id != null && id.compareTo(0) > 0) {
 					// 2.1 如果id存在，则更新
 					String updateSql = getUpdateSql(id, user, info);
@@ -83,6 +106,12 @@ public class DataBaseProfile {
 					return true;
 				} else {
 					// 2.2 如果不存在，则新增
+					// 监测是否具有重复的数据
+					ConnectionInfo connectionInfo2 = getConnectionInfo(user, info.getName());
+					if (connectionInfo2 != null) {
+						throw new JsqltoolParamException("该连接已经存在！");
+					}
+
 					id = getMaxId(connect);
 					String insertSql = getInsertSql(id + 1, user, info);
 					SqlPlus.execute(connect, insertSql);
@@ -207,15 +236,15 @@ public class DataBaseProfile {
 	* @date 2019年7月7日
 	* @Description:  根据用户user和info获取连接的id
 	 */
-	private Integer getIdByConnectionInfo(Connection connect, String user, ConnectionInfo info) {
+	private Integer getIdByConnectionInfo(Connection connect, String user, String connectionName) {
 		Integer id = null;
 		StringBuilder sb = new StringBuilder();
 		sb.append("select id from " + tableName);
 		sb.append(" where f_name= ");
-		if (StringUtils.isBlank(info.getName())) {
+		if (StringUtils.isBlank(connectionName)) {
 			throw new JsqltoolParamException("连接名不能为空");
 		}
-		sb.append("'" + StringUtils.trim(info.getName()) + "'");
+		sb.append("'" + StringUtils.trim(connectionName) + "'");
 		sb.append(" and ");
 		if (StringUtils.isBlank(user)) {
 			sb.append("( f_user='' or f_user = ' ')");
@@ -248,6 +277,14 @@ public class DataBaseProfile {
 				List<Object> values = record.getValues();
 				for (int i = 0; i < columns.size(); i++) {
 					Column c = columns.get(i);
+					// F_NAME
+					if (StringUtils.equalsIgnoreCase("F_NAME", c.getColumnName())) {
+						Object v = values.get(i);
+						if (v == null) {
+							throw new JsqltoolParamException("获取的连接名不能为空");
+						}
+						info.setName(v.toString());
+					}
 					// driver_class_name
 					if (StringUtils.equalsIgnoreCase("driver_class_name", c.getColumnName())) {
 						Object v = values.get(i);
@@ -357,12 +394,19 @@ public class DataBaseProfile {
 
 	private void createTable(Connection conn) {
 		try (Statement statement = conn.createStatement();) {
-			statement.execute(createTableSql);
+			statement.execute(getCreateTableSql());
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			JdbcUtil.commit(conn);
 		}
+	}
+
+	private String getCreateTableSql() {
+		return "create table " + tableName + " (id int primary key ,\r\n" + "  f_user varchar(30) not null ,\r\n"
+				+ "  f_name varchar(30) not null,\r\n" + "  driver_class_name varchar(60) not null ,\r\n"
+				+ "  f_url varchar(128) not null,\r\n" + "  user_name varchar(30),\r\n" + "  pwd varchar(60),\r\n"
+				+ " CONSTRAINT index_unique unique(f_user,f_name)\r\n" + "  )";
 	}
 
 	private Connection connect() {
