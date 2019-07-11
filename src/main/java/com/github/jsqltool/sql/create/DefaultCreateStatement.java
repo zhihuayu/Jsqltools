@@ -37,7 +37,7 @@ public class DefaultCreateStatement implements ICreateStatement {
 			driverName = connection.getMetaData().getDriverName();
 			tableComment = tableParam.getComment();
 			// 设置create 头部信息，如：test.tableName
-			tableInfo = JdbcUtil.getTableNameInfo(connection, tableParam.getCatelog(), tableParam.getSchema(),
+			tableInfo = JdbcUtil.getTableNameInfo(connection, tableParam.getCatalog(), tableParam.getSchema(),
 					tableParam.getTableName());
 			if (param == null || param.isEmpty()) {
 				throw new SqlParseException("不能解析create语句，因为没有字段参数！");

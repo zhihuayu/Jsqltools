@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 
@@ -127,7 +128,7 @@ public class DataBaseProfile {
 		}
 		StringBuilder sb = new StringBuilder();
 		sb.append("insert into  " + tableName);
-		sb.append(" ( id,f_user,f_name,driver_class_name,f_url,user_name,pwd )");
+		sb.append(" ( id,f_user,f_name,driver_class_name,f_url,user_name,pwd,prop )");
 		sb.append(" values (");
 		sb.append(id + ",");
 		sb.append(getStringValue(user) + ",");
@@ -150,7 +151,16 @@ public class DataBaseProfile {
 		if (StringUtils.isBlank(info.getPassword())) {
 			throw new JsqltoolParamException("password不能为空！");
 		}
-		sb.append(getStringValue(info.getPassword()));
+		sb.append(getStringValue(info.getPassword()) + ",");
+
+		// prop
+		String covertPropertiesToString = covertPropertiesToString(info.getProp());
+		if (StringUtils.isBlank(covertPropertiesToString)) {
+			sb.append(" NULL ");
+		} else {
+			sb.append(covertPropertiesToString);
+		}
+
 		sb.append(" )");
 		return sb.toString();
 	}
@@ -218,9 +228,60 @@ public class DataBaseProfile {
 			throw new JsqltoolParamException("password不能为空！");
 		}
 		sb.append(getStringValue(info.getPassword()));
+		sb.append(",");
+		// prop
+		sb.append(" prop = ");
+		String prop = covertPropertiesToString(info.getProp());
+		if (StringUtils.isBlank(prop)) {
+			sb.append(" NULL ");
+		} else {
+			sb.append(prop);
+		}
+
 		sb.append(" where id = ");
 		sb.append(id);
 		return sb.toString();
+	}
+
+	private Properties convertStringToProp(Properties prop, String cs) {
+		if (StringUtils.isNotBlank(cs)) {
+			if (prop == null)
+				prop = new Properties();
+			String[] split = cs.split(",");
+			for (String str : split) {
+				if (StringUtils.isNotBlank(str)) {
+					String[] key_value = str.trim().split(":");
+					if (key_value != null && key_value.length == 2
+							&& StringUtils.isNoneBlank(key_value[0], key_value[1])) {
+						prop.setProperty(key_value[0].trim(), key_value[1].trim());
+					}
+				}
+			}
+		}
+		return prop;
+	}
+
+	private String covertPropertiesToString(Properties prop) {
+		if (prop == null || prop.isEmpty()) {
+			return null;
+		}
+		Enumeration<Object> keys = prop.keys();
+		StringBuilder sbP = new StringBuilder();
+		while (keys.hasMoreElements()) {
+			Object nextElement = keys.nextElement();
+			if (nextElement instanceof String) {
+				String key = (String) nextElement;
+				String value = prop.getProperty(key);
+				if (StringUtils.isNoneBlank(key, value)) {
+					sbP.append(key.trim());
+					sbP.append(":");
+					sbP.append(value.trim());
+					sbP.append(",");
+				}
+			}
+		}
+		sbP.setLength(sbP.length() - 1);
+		return sbP.toString();
 	}
 
 	private String getStringValue(String str) {
@@ -277,6 +338,14 @@ public class DataBaseProfile {
 				List<Object> values = record.getValues();
 				for (int i = 0; i < columns.size(); i++) {
 					Column c = columns.get(i);
+					// PROP
+					if (StringUtils.equalsIgnoreCase("PROP", c.getColumnName())) {
+						Object v = values.get(i);
+						if (v != null && v instanceof CharSequence) {
+							String cs = v.toString();
+							info.setProp(convertStringToProp(null, cs));
+						}
+					}
 					// F_NAME
 					if (StringUtils.equalsIgnoreCase("F_NAME", c.getColumnName())) {
 						Object v = values.get(i);
@@ -406,7 +475,7 @@ public class DataBaseProfile {
 		return "create table " + tableName + " (id int primary key ,\r\n" + "  f_user varchar(30) not null ,\r\n"
 				+ "  f_name varchar(30) not null,\r\n" + "  driver_class_name varchar(60) not null ,\r\n"
 				+ "  f_url varchar(128) not null,\r\n" + "  user_name varchar(30),\r\n" + "  pwd varchar(60),\r\n"
-				+ " CONSTRAINT index_unique unique(f_user,f_name)\r\n" + "  )";
+				+ " prop varchar(512) default NULL,\r\n" + " CONSTRAINT index_unique unique(f_user,f_name)\r\n" + "  )";
 	}
 
 	private Connection connect() {

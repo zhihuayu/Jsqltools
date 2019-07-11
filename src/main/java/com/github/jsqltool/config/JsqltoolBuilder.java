@@ -8,6 +8,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import com.github.jsqltool.exception.SqlExecuteException;
 import com.github.jsqltool.model.DatabaseModel;
 import com.github.jsqltool.model.IModel;
 import com.github.jsqltool.model.ProfileModel;
+import com.github.jsqltool.param.DropTableParam;
 import com.github.jsqltool.param.ExecutorSqlParam;
 import com.github.jsqltool.param.IndexParam;
 import com.github.jsqltool.param.TableColumnsParam;
@@ -38,6 +40,9 @@ import com.github.jsqltool.sql.delete.DeleteHandlerContent;
 import com.github.jsqltool.sql.delete.IdeleteHandler;
 import com.github.jsqltool.sql.delete.MySqlDeleteHandler;
 import com.github.jsqltool.sql.delete.OracleDeleteHandler;
+import com.github.jsqltool.sql.dropTable.DefaultDropTable;
+import com.github.jsqltool.sql.dropTable.DropTableHandlerContent;
+import com.github.jsqltool.sql.dropTable.IdropTableHandler;
 import com.github.jsqltool.sql.index.IIndexInfoHandler;
 import com.github.jsqltool.sql.index.IndexInfoHandlerContent;
 import com.github.jsqltool.sql.index.JDBCIndexInfoHandler;
@@ -66,6 +71,8 @@ import com.github.jsqltool.sql.update.MySqlUpdateDataHandler;
 import com.github.jsqltool.sql.update.OracleUpdateDataHandler;
 import com.github.jsqltool.sql.update.UpdateDataHandlerContent;
 import com.github.jsqltool.utils.JdbcUtil;
+import com.github.jsqltool.utils.JdbcUtil.ColumnInfo;
+import com.github.jsqltool.utils.JdbcUtil.TypeInfo;
 import com.github.jsqltool.vo.Index;
 import com.github.jsqltool.vo.Primary;
 import com.github.jsqltool.vo.UpdateResult;
@@ -93,6 +100,8 @@ public class JsqltoolBuilder {
 	private final InsertHandlerContent insertHandlerContent;
 	// 删除数据处理器
 	private final DeleteHandlerContent deleteHandlerContent;
+	// 删除表/视图处理器
+	private final DropTableHandlerContent dropTableHandlerContent;
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private JsqltoolBuilder() {
@@ -175,6 +184,10 @@ public class JsqltoolBuilder {
 			deleteHandlerContent.addLast(new DefaultDeleteHandler());
 			deleteHandlerContent.addFirst(new MySqlDeleteHandler());
 			deleteHandlerContent.addFirst(new OracleDeleteHandler());
+			// 删除表格处理器
+			dropTableHandlerContent = new DropTableHandlerContent();
+			dropTableHandlerContent.addFirst(new DefaultDropTable());
+
 		} catch (IOException e) {
 			throw new JsqltoolBuildException("JsqltoolBuilder创建失败", e);
 		} finally {
@@ -190,8 +203,33 @@ public class JsqltoolBuilder {
 
 	}
 
+	/**
+	* @author yzh
+	* @date 2019年7月11日
+	* @Description: 获取数据库类型
+	 */
 	public DBType getDbType(Connection connection) throws SQLException {
 		return DBType.getDBTypeByDriverClassName(connection.getMetaData().getDriverName());
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月11日
+	* @Description: 获取数据库支持的类型信息
+	 */
+	public Set<TypeInfo> getDatabaseDataTypeInfo(Connection connection) throws SQLException {
+		return JdbcUtil.getTypeInfo(connection);
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月11日
+	* @Description: 获取指定表格的列信息
+	 */
+	public List<ColumnInfo> getColumnInfo(Connection connection, TableColumnsParam param) throws SQLException {
+		return JdbcUtil.getTableColumnInfo(connection, param);
 	}
 
 	/**
@@ -367,6 +405,18 @@ public class JsqltoolBuilder {
 
 	public void addLastSchemaHandler(IScheamHandler handler) {
 		schema.addLast(handler);
+	}
+
+	public UpdateResult dropTable(Connection connect, DropTableParam dropTableParam) throws SQLException {
+		return dropTableHandlerContent.drop(connect, dropTableParam);
+	}
+
+	public void addFirstDropTableHandler(IdropTableHandler handler) {
+		dropTableHandlerContent.addFirst(handler);
+	}
+
+	public void addLastDropTableHandler(IdropTableHandler handler) {
+		dropTableHandlerContent.addLast(handler);
 	}
 
 	public UpdateResult delete(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {

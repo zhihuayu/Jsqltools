@@ -8,7 +8,7 @@ package com.github.jsqltool.param;
  */
 public class TableColumnsParam {
 
-	private String catelog;
+	private String catalog;
 	private String schema;
 	private String tableName;
 	private String comment;
@@ -21,12 +21,12 @@ public class TableColumnsParam {
 		this.comment = comment;
 	}
 
-	public String getCatelog() {
-		return catelog;
+	public String getCatalog() {
+		return catalog;
 	}
 
-	public void setCatelog(String catelog) {
-		this.catelog = catelog;
+	public void setCatalog(String catalog) {
+		this.catalog = catalog;
 	}
 
 	public String getSchema() {

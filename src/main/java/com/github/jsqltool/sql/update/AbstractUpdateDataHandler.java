@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.exception.UpdateDataException;
@@ -23,6 +25,7 @@ import com.github.jsqltool.vo.Primary;
 import com.github.jsqltool.vo.UpdateResult;
 
 public abstract class AbstractUpdateDataHandler implements IUpdateDataHandler {
+	private static final Logger logger = LoggerFactory.getLogger(AbstractUpdateDataHandler.class);
 
 	@Override
 	final public UpdateResult update(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
@@ -63,6 +66,7 @@ public abstract class AbstractUpdateDataHandler implements IUpdateDataHandler {
 		}
 		// 如果没有强制执行，则遇到警告就直接返回不执行
 		if (updateResult.getCode() != null && updateResult.getCode().equals(UpdateResult.WARN) && !force) {
+			logger.warn("更新不会被执行，因为：" + updateResult.getMsg() + "请设置好force参数为true时强制执行！");
 			return updateResult;
 		}
 		return SqlPlus.excutePrepareStatement(connect, sqls);

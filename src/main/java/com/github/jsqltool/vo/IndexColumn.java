@@ -21,4 +21,13 @@ public class IndexColumn {
 		this.indexPosition = indexPosition;
 	}
 
+	/**
+	 *  JDBC中的索引类型
+	 * @author yzh
+	 * @date 2019年7月11日
+	 */
+	public static class IndexType {
+
+	}
+
 }

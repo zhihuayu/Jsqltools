@@ -17,7 +17,7 @@ public class DefaultTableColumnHandler implements ITableColumnHandler {
 	public List<TableColumnInfo> list(Connection connection, TableColumnsParam param) {
 		try {
 			DatabaseMetaData dbmd = connection.getMetaData();
-			String catelog = StringUtils.isBlank(param.getCatelog()) ? null : param.getCatelog().toUpperCase();
+			String catelog = StringUtils.isBlank(param.getCatalog()) ? null : param.getCatalog().toUpperCase();
 			String schema = StringUtils.isBlank(param.getSchema()) ? null : param.getSchema().toUpperCase();
 			String tableName = StringUtils.upperCase(param.getTableName());
 			List<TableColumnInfo> columns = null;

@@ -1,5 +1,7 @@
 package com.github.jsqltool.entity;
 
+import java.util.Properties;
+
 public class ConnectionInfo {
 
 	private String name;
@@ -7,6 +9,15 @@ public class ConnectionInfo {
 	private String url;
 	private String userName;
 	private String password;
+	private Properties prop;
+
+	public Properties getProp() {
+		return prop;
+	}
+
+	public void setProp(Properties prop) {
+		this.prop = prop;
+	}
 
 	public String getName() {
 		return name;

@@ -8,6 +8,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -19,17 +20,27 @@ import com.github.jsqltool.exception.ProfileParserException;
 public class FileProfile {
 
 	private final String filePath;
+	private final String profilePorpPrefix;
 
 	public FileProfile(Properties prop) {
 		if (prop == null) {
 			throw new JsqltoolParamException("Jsqltool配置文件不存在！!");
 		}
+		// 设置文件路径
 		String filePath = prop.getProperty("jsqltool.profiles.filePath");
 		if (StringUtils.isBlank(filePath)) {
 			this.filePath = "/dbProfile";
 		} else {
 			this.filePath = "/" + filePath.trim();
 		}
+		// 设置profilePorpPrefix，属性的前缀名称
+		String prefix = prop.getProperty("jsqltool.profiles.prefix");
+		if (StringUtils.isBlank(prefix)) {
+			this.profilePorpPrefix = "jdbc.properties";
+		} else {
+			this.profilePorpPrefix = prefix;
+		}
+
 	}
 
 	public List<String> listProfilesName(String user) {
@@ -106,7 +117,25 @@ public class FileProfile {
 		info.setUrl(url);
 		info.setPassword(password);
 		info.setUserName(username);
+		info.setProp(convertToProperties(properties));
 		return info;
+	}
+
+	private Properties convertToProperties(Properties properties) {
+		if (properties == null || properties.isEmpty()) {
+			return null;
+		}
+		Set<String> stringPropertyNames = properties.stringPropertyNames();
+		Properties prop = new Properties();
+		for (String key : stringPropertyNames) {
+			if (key.startsWith(profilePorpPrefix)) {
+				String value = properties.getProperty(key);
+				String ck = key.substring(profilePorpPrefix.length() + 1);
+				if (StringUtils.isNoneBlank(ck, value))
+					prop.setProperty(ck.trim(), value.trim());
+			}
+		}
+		return prop;
 	}
 
 	public void saveConnectionInfo(String owner, String oldConnectionName, ConnectionInfo info) throws IOException {
@@ -123,7 +152,18 @@ public class FileProfile {
 		properties.put("jdbc.url", url);
 		properties.put("jdbc.username", username);
 		properties.put("jdbc.password", password);
-
+		// 设置属性
+		Properties prop = info.getProp();
+		if (prop != null && !prop.isEmpty()) {
+			Set<String> stringPropertyNames = prop.stringPropertyNames();
+			for (String key : stringPropertyNames) {
+				String v = prop.getProperty(key);
+				String k = profilePorpPrefix + "." + key.trim();
+				if (StringUtils.isNoneBlank(v, k)) {
+					properties.setProperty(k.trim(), v.trim());
+				}
+			}
+		}
 		URL resource = this.getClass().getResource("/");
 		File file = new File(resource.getFile(), filePath);
 		if (StringUtils.isNotBlank(owner)) {

@@ -12,7 +12,8 @@ public class IndexParam {
 	private String catalog;
 	private String schema;
 	private String table;
-	private Boolean unique = false; // 是否是unique，如果获取的是主键该值可以不进行设置
+	// 是否是unique，如果为false则代表获取所有的索引不管其是不是unique索引，如果获取的是主键该值可以不进行设置
+	private Boolean unique = false;
 
 	public String getCatalog() {
 		return catalog;

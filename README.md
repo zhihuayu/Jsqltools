@@ -18,18 +18,30 @@ jdbc操作数据库（增删改查）的工具，简单易用可扩展，目前�
    默认情况下properties文件放在classpath下的dbProfile文件夹下，可以通过属性：jsqltool.profiles.filePath来定义方式连接信息的根路径。
    对于保存连接信息的属性文件，其文件名为连接名称，如：测试MySQL.properties，常见配置信息如下所示：
   
- ``` jdbc.url=jdbc\:mysql\://localhost\:3306
+ ``` 
+jdbc.url=jdbc\:mysql\://localhost\:3306
 jdbc.className=com.mysql.jdbc.Driver
 jdbc.username=root
 jdbc.password=123456
   ```
   对于Oracle可以配置如下：
   
-```jdbc.url=jdbc\:oracle\:thin\:@localhost\:1521\:orcl
+```
+jdbc.url=jdbc\:oracle\:thin\:@localhost\:1521\:orcl
 jdbc.className=oracle.jdbc.OracleDriver
 jdbc.username=scott
 jdbc.password=123456
 ```
+&emsp;除此之外，我们也可以设置连接属性，jSqlTool框架使用的是阿里的druid作为连接池，我们可以通过这种方式来自定义连接属性，其最终会通过DruidDataSource.addConnectionProperty方法进行设置。例如对于MySQL数据库来说如果想要能够使用jdbc来返回数据库的元数据信息，则需要设置useInformationSchema属性为true，Oracle则需要设置remarksReporting属性为true。  
+&emsp;注：对于MySQL和Oracle数据库分别会自动设置useInformationSchema和remarksReporting两个属性为true。  
+&emsp;默认设置方式为：
+  
+  ```
+ #设置属性信息，其默认前缀为jdbc.properties，可以通过配置文件的jsqltool.profiles.prefix属性来设置前缀信息
+jdbc.properties.useInformationSchema=true
+```
+  
+  
 
 ### 1.2 databaseProfile方式
   配置项：`jsqltool.model=databaseProfile`  
@@ -119,5 +131,12 @@ public class IcbcModel implements IModel {
 
 ### 获取索引信息  
    方法：`List<Index> listIndexInfo(Connection connection, IndexParam param)`
+   
+ ### 删除表/视图
+   支持一次性删除多张表/视图
+   方法：`UpdateResult dropTable(Connection connect, DropTableParam dropTableParam)`
+   参数：DropTableParam 表/视图信息的参数
+   
+ 
 
   

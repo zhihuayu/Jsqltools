@@ -273,7 +273,7 @@ public class SqlPlus {
 			sqlResult.setRecords(records);
 			sqlResult.setCount(count);
 			long endTime = System.currentTimeMillis();
-			logger.debug("execute sql {} times:{}ms", sql, endTime - startTime);
+			logger.debug("execute sql {} times:{} ms", sql, endTime - startTime);
 			String message = sqlResult.getMessage();
 			message += "，用时：" + (endTime - startTime) + "ms";
 			sqlResult.setMessage(message);
@@ -285,14 +285,28 @@ public class SqlPlus {
 		}
 	}
 
-	public static int update(Connection connection, String sql) throws SQLException {
-		Statement statement = null;
-		try {
-			statement = connection.createStatement();
-			return statement.executeUpdate(sql);
-		} finally {
-			JdbcUtil.close(statement);
+	/**
+	 *  可以执行多个update语句
+	* @author yzh
+	* @date 2019年7月9日
+	* @Description sql an SQL Data Manipulation Language (DML) statement, such as INSERT, UPDATE or DELETE; or an SQL statement that returns nothing, such as a DDL statement.
+	* @return int    返回类型
+	 */
+	public static int executeUpdate(Connection connection, List<String> sqls) throws SQLException {
+		if (sqls == null || sqls.isEmpty()) {
+			throw new JsqltoolParamException("没有可以执行的excuteUpdate的SQL语句！");
 		}
+		int rows = 0;
+		for (String sql : sqls) {
+			long startTime = System.currentTimeMillis();
+			try (Statement statement = connection.createStatement();) {
+				int effective = statement.executeUpdate(sql);
+				rows += effective;
+				logger.debug("execute sql {} 影响的行数为：{}，时间为:{} ms",new Object[] {sql,effective,System.currentTimeMillis()-startTime});
+			}
+		}
+		JdbcUtil.commit(connection);
+		return rows;
 	}
 
 	/**
@@ -319,7 +333,7 @@ public class SqlPlus {
 			column.setTypeName(typeName);
 			column.setAutoIncrement(autoIncrement);
 			columns.add(column);
-		}
+		} 
 		return columns;
 	}
 
