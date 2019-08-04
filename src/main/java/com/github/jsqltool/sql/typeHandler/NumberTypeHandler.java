@@ -9,14 +9,18 @@ import org.apache.commons.lang3.StringUtils;
 import com.github.jsqltool.enums.JdbcType;
 import com.github.jsqltool.exception.JsqltoolParamException;
 
-public class NumberTypeHandler implements TypeHandler<Integer, Number> {
+public class NumberTypeHandler implements TypeHandler<String, Number> {
 
+	/**
+	 * 由于 number类型可能为long，如果为long则显示的前端如浏览器的位数为16为，超过16位会强制转换成0，
+	 * 也可能为float或者double类型，所以这里统一转换成字符串进行输出
+	 */
 	@Override
-	public Integer handler(ResultSet resultSet, int index, JdbcType type) throws SQLException {
+	public String handler(ResultSet resultSet, int index, JdbcType type) throws SQLException {
 		Object object = resultSet.getObject(index);
 		if (object == null)
 			return null;
-		return resultSet.getInt(index);
+		return resultSet.getString(index);
 	}
 
 	@Override
@@ -42,7 +46,7 @@ public class NumberTypeHandler implements TypeHandler<Integer, Number> {
 				}
 			}
 			if (obj instanceof Number) {
-				return ((Number) obj).longValue();
+				return (Number) obj;
 			}
 			if (obj instanceof String) {
 				String str = (String) obj;

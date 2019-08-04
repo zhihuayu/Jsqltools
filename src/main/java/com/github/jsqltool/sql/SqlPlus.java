@@ -20,6 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.sql.PooledConnection;
 
@@ -30,6 +37,7 @@ import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.enums.JdbcType;
+import com.github.jsqltool.exception.CountSqlException;
 import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.model.IModel;
 import com.github.jsqltool.param.SqlParam;
@@ -51,6 +59,8 @@ public class SqlPlus {
 	private static final int UNKNOWN = 99;
 	private static final Logger logger = LoggerFactory.getLogger(SqlPlus.class);
 	private static final ThreadLocal<PageHelper> pageHelper = new ThreadLocal<>();
+	private static final ExecutorService executorCountSqlService = Executors
+			.newCachedThreadPool(new CountTaskThreadFactory());
 
 	public static void removePage() {
 		pageHelper.remove();
@@ -61,6 +71,11 @@ public class SqlPlus {
 	}
 
 	public static void setPage(Integer page, Integer pageSize, Long count, Boolean isCount, DBType type) {
+		setPage(page, pageSize, count, isCount, type, null);
+	}
+
+	public static void setPage(Integer page, Integer pageSize, Long count, Boolean isCount, DBType type,
+			String countSql) {
 		PageHelper helper = new PageHelper();
 		helper.setCount(count);
 		if (isCount != null)
@@ -75,6 +90,7 @@ public class SqlPlus {
 			helper.setPageSize(pageSize);
 		}
 		helper.setDbType(type);
+		helper.setCountSql(countSql);
 		pageHelper.set(helper);
 	}
 
@@ -180,11 +196,11 @@ public class SqlPlus {
 				logger.info("type: {}, sql: {}", type, sql);
 
 				if (type == SELECT) {
-					return select(connection, sql, type);
+					return selectAndPage(connection, sql, type);
 				}
 
 				if (type == SHOW) {
-					return select(connection, sql, type);
+					return selectAndPage(connection, sql, type);
 				}
 
 				try {
@@ -250,37 +266,69 @@ public class SqlPlus {
 		return (buffer.length() > 0 ? buffer.toString() : null);
 	}
 
-	public static SqlResult select(Connection connection, String sql, int sqlType) throws SQLException {
+	/**
+	 * 
+	* @author yzh
+	 * @throws CloneNotSupportedException 
+	* @date 2019年7月27日
+	* @Description: 执行select语句并进行分页
+	 */
+	public static SqlResult selectAndPage(Connection connection, String selectSql, int sqlType)
+			throws SQLException, CloneNotSupportedException {
+		SqlResult sqlResult = null;
+		String sourceSql = selectSql;
 		// 分页
 		PageHelper page = null;
 		long startTime = System.currentTimeMillis();
-		long count = 0;
+		Future<Long> count = null;
 		if (sqlType == SELECT) {
 			page = pageHelper.get();
 			if (page != null) {
-				count = page.getCountSql(connection, sql);
-				if (count > page.getPageSize() && page.getPageSize().compareTo(0) >= 0) {
-					sql = page.getPageSql(sql);
+				count = executorCountSqlService.submit(new CountTask(page, selectSql, connection));
+				if (page.getPageSize() != null && page.getPageSize().compareTo(0) >= 0) {
+					selectSql = page.getPageSql(selectSql);
 				}
 			}
 		}
-		try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(sql);) {
+		sqlResult = select(connection, selectSql);
+		try {
+			if (count != null) {
+				Long c = count.get();
+				sqlResult.setCount(c);
+			}
+		} catch (Exception e) {
+			throw new CountSqlException(e);
+		}
+		if (page != null) {
+			sqlResult.setPage(page.getPage());
+			sqlResult.setPageSize(page.getPageSize());
+		}
+		long endTime = System.currentTimeMillis();
+		String message = String.format("SQL[%s],%n", sourceSql) + sqlResult.getMessage();
+		message += "，用时：" + (endTime - startTime) + "ms";
+		sqlResult.setMessage(message);
+		return sqlResult;
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月27日
+	* @Description: 仅仅执行简单的select或者show语句
+	 */
+	public static SqlResult select(Connection connection, String selectSql) throws SQLException {
+		long startTime = System.currentTimeMillis();
+		try (Statement statement = connection.createStatement();
+				ResultSet resultSet = statement.executeQuery(selectSql);) {
 			ResultSetMetaData medaData = resultSet.getMetaData();
 			List<Column> columns = getColumns(medaData);
 			List<Record> records = getRecords(resultSet);
-			SqlResult sqlResult = SqlResult.success("status：success");
+			SqlResult sqlResult = SqlResult.success("status:success");
 			sqlResult.setColumns(columns);
 			sqlResult.setRecords(records);
-			sqlResult.setCount(count);
+			sqlResult.setCount(records != null ? records.size() : 0);
 			long endTime = System.currentTimeMillis();
-			logger.debug("execute sql {} times:{} ms", sql, endTime - startTime);
-			String message = sqlResult.getMessage();
-			message += "，用时：" + (endTime - startTime) + "ms";
-			sqlResult.setMessage(message);
-			if (page != null) {
-				sqlResult.setPage(page.getPage());
-				sqlResult.setPageSize(page.getPageSize());
-			}
+			logger.debug("execute sql {} times:{} ms", selectSql, endTime - startTime);
 			return sqlResult;
 		}
 	}
@@ -302,7 +350,8 @@ public class SqlPlus {
 			try (Statement statement = connection.createStatement();) {
 				int effective = statement.executeUpdate(sql);
 				rows += effective;
-				logger.debug("execute sql {} 影响的行数为：{}，时间为:{} ms",new Object[] {sql,effective,System.currentTimeMillis()-startTime});
+				logger.debug("execute sql {} 影响的行数为：{}，时间为:{} ms",
+						new Object[] { sql, effective, System.currentTimeMillis() - startTime });
 			}
 		}
 		JdbcUtil.commit(connection);
@@ -333,7 +382,7 @@ public class SqlPlus {
 			column.setTypeName(typeName);
 			column.setAutoIncrement(autoIncrement);
 			columns.add(column);
-		} 
+		}
 		return columns;
 	}
 
@@ -402,7 +451,6 @@ public class SqlPlus {
 	}
 
 	public static class SqlResult {
-
 		private int status;
 		private String message;
 		private List<Column> columns;
@@ -561,15 +609,55 @@ public class SqlPlus {
 
 	}
 
-	public static void main(String[] args) throws IOException {
+	// 专门用于执行count表的任务
+	private static class CountTask implements Callable<Long> {
+
+		private final PageHelper page;
+		private final String selectSql;
+		private final Connection connection;
+
+		public CountTask(PageHelper page, String selectSql, Connection connection)
+				throws SQLException, CloneNotSupportedException {
+			this.page = page;
+			this.selectSql = selectSql;
+			this.connection = connection;
+		}
+
+		@Override
+		public Long call() throws SQLException {
+			return page.getCountFromSql(connection, selectSql);
+		}
+
+	}
+
+	private static class CountTaskThreadFactory implements ThreadFactory {
+		private final ThreadGroup group;
+		private final AtomicInteger threadNumber = new AtomicInteger(1);
+		private final String namePrefix;
+
+		CountTaskThreadFactory() {
+			SecurityManager s = System.getSecurityManager();
+			group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
+			namePrefix = "JsqlTool-countPool-thread-";
+		}
+
+		public Thread newThread(Runnable r) {
+			Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0);
+			if (t.isDaemon())
+				t.setDaemon(false);
+			if (t.getPriority() != Thread.NORM_PRIORITY)
+				t.setPriority(Thread.NORM_PRIORITY);
+			return t;
+		}
+	}
+
+	public static void main(String[] args) throws IOException, InterruptedException, SQLException, ExecutionException {
 		IModel model = JsqltoolBuilder.builder().getModel();
 		ConnectionInfo loadConnectionInfo = model.getConnectionInfo("", "测试MySql");
 		Connection connect = JdbcUtil.connect(loadConnectionInfo);
-		SqlResult execute = execute(connect, "use test");
-		System.out.println(execute);
+		execute(connect, "use test");
 		String sql = "  select" + " * from student;";
-		SqlResult execute2 = execute(connect, sql);
-		System.out.println(execute2);
+		System.out.println(execute(connect, sql));
 		JdbcUtil.close(connect);
 
 	}

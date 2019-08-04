@@ -7,7 +7,7 @@ package com.github.jsqltool.param;
  * @date 2019年6月22日
  */
 public class ExecutorSqlParam {
-	private String catelog;
+	private String catalog;
 	private String schema;
 	private String sql;
 	// 以下为分页参数
@@ -32,12 +32,12 @@ public class ExecutorSqlParam {
 		this.pageSize = pageSize;
 	}
 
-	public String getCatelog() {
-		return catelog;
+	public String getCatalog() {
+		return catalog;
 	}
 
-	public void setCatelog(String catelog) {
-		this.catelog = catelog;
+	public void setCatalog(String catalog) {
+		this.catalog = catalog;
 	}
 
 	public String getSchema() {

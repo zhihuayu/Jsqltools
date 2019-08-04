@@ -1,6 +1,7 @@
 package com.github.jsqltool.profile;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,13 +14,13 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.jsqltool.entity.ConnectionInfo;
-import com.github.jsqltool.exception.CannotFindProfileException;
 import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.ProfileParserException;
 
 public class FileProfile {
 
 	private final String filePath;
+	private final String fileSeparator = File.separator;
 	private final String profilePorpPrefix;
 
 	public FileProfile(Properties prop) {
@@ -44,18 +45,44 @@ public class FileProfile {
 	}
 
 	public List<String> listProfilesName(String user) {
-		URL resource = null;
-		if (StringUtils.isBlank(user)) {
-			resource = FileProfile.class.getResource(filePath);
-		} else {
-			resource = FileProfile.class.getResource(filePath + "/" + user);
-		}
 		List<String> names = new ArrayList<>();
-		if (resource != null) {
-			File file = new File(resource.getFile());
-			addFiles(names, file);
-		}
+		File rootPathFile = getRootPathFile(user);
+		if (rootPathFile != null)
+			addFiles(names, rootPathFile);
 		return names;
+	}
+
+	private File getRootPathFile(String user) {
+		File userHomeRootFile = getUserHomeRootFile(user);
+		if (userHomeRootFile != null)
+			return userHomeRootFile;
+		return getClassPathRootFile(user);
+	}
+
+	private File getUserHomeRootFile(String user) {
+		String home = System.getProperty("user.home");
+		if (StringUtils.isNotBlank(home)) {
+			String relativePath = getRelativePath(user);
+			return new File(home, relativePath);
+		}
+		return null;
+	}
+
+	private File getClassPathRootFile(String user) {
+		URL resource = FileProfile.class.getResource("/");
+		if (resource != null) {
+			String relativePath = getRelativePath(user);
+			return new File(resource.getFile(), relativePath);
+		}
+		return null;
+	}
+
+	private String getRelativePath(String user) {
+		if (StringUtils.isNotBlank(user)) {
+			return filePath + fileSeparator + user;
+		} else {
+			return filePath;
+		}
 	}
 
 	private void addFiles(List<String> names, File file) {
@@ -85,14 +112,8 @@ public class FileProfile {
 	public ConnectionInfo loadConnectionInfo(String userName, String name) throws IOException {
 		InputStream in = null;
 		try {
-			if (StringUtils.isBlank(userName)) {
-				in = this.getClass().getResourceAsStream(filePath + "/" + name + ".properties");
-			} else {
-				in = this.getClass().getResourceAsStream(filePath + "/" + userName + "/" + name + ".properties");
-			}
-			if (in == null) {
-				throw new CannotFindProfileException("不能找到对应的属性文件：" + name + ".properties");
-			}
+			File file = new File(getRootPathFile(userName), name + ".properties");
+			in = new FileInputStream(file);
 			Properties properties = new Properties();
 			properties.load(in);
 			ConnectionInfo info = convertToConnectionInfo(name, properties);
@@ -164,11 +185,7 @@ public class FileProfile {
 				}
 			}
 		}
-		URL resource = this.getClass().getResource("/");
-		File file = new File(resource.getFile(), filePath);
-		if (StringUtils.isNotBlank(owner)) {
-			file = new File(file, owner);
-		}
+		File file = getRootPathFile(owner);
 		if (!file.exists()) {
 			file.mkdirs();
 		}
@@ -176,7 +193,7 @@ public class FileProfile {
 		if (StringUtils.isNotBlank(oldConnectionName)) {
 			File oldFile = new File(file, oldConnectionName + ".properties");
 			if (oldFile.exists()) {
-				oldFile.deleteOnExit();
+				oldFile.delete();
 			}
 		}
 		File nfile = new File(file, name + ".properties");
@@ -186,16 +203,10 @@ public class FileProfile {
 	}
 
 	public boolean delete(String user, String connectionName) {
-		URL resource = null;
-		if (StringUtils.isBlank(user)) {
-			resource = FileProfile.class.getResource(filePath);
-		} else {
-			resource = FileProfile.class.getResource(filePath + "/" + user);
-		}
 		if (StringUtils.isBlank(connectionName)) {
 			throw new ProfileParserException("connectionName参数不能为空");
 		}
-		File file = new File(resource.getFile(), connectionName.trim() + ".properties");
+		File file = new File(getRootPathFile(user), connectionName.trim() + ".properties");
 		if (file.exists()) {
 			return file.delete();
 		} else {

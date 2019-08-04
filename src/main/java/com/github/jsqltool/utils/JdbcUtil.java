@@ -18,7 +18,9 @@ import javax.sql.DataSource;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.alibaba.druid.pool.DataSourceNotAvailableException;
 import com.alibaba.druid.pool.DruidDataSource;
+import com.alibaba.druid.pool.DruidPooledConnection;
 import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.enums.DBType;
@@ -48,10 +50,18 @@ public class JdbcUtil {
 		return connect(connectionInfo);
 	}
 
+	public static Connection getNativeConnection(Connection connection) {
+		if (connection != null && connection instanceof DruidPooledConnection) {
+			((DruidPooledConnection) connection).getConnection();
+		}
+		return connection;
+
+	}
+
 	public static Connection connect(ConnectionInfo info) {
 		try {
-			Connection conn = JdbcUtil.connect(info.getDriverClassName(), info.getUrl(), info.getUserName(),
-					info.getPassword(), info.getProp());
+			Connection conn = connect(info.getDriverClassName(), info.getUrl(), info.getUserName(), info.getPassword(),
+					info.getProp());
 			// conn.setAutoCommit(true);
 			// this.conn.setTransactionIsolation(isolationLivels[dbConnection.getIsolationLevel()]);
 			conn.setReadOnly(false);
@@ -67,7 +77,31 @@ public class JdbcUtil {
 		if (dataSource == null) {
 			throw new DatasourceNullException("can not get DataSource instance");
 		}
-		return dataSource.getConnection();
+		DruidDataSource d = null;
+		if (dataSource instanceof DruidDataSource) {
+			d = (DruidDataSource) dataSource;
+			if (d.isClosed()) {
+				d.restart();
+			}
+		}
+		Throwable th = null;
+		for (int i = 0; i < 3; i++) {
+			try {
+				return dataSource.getConnection();
+			} catch (java.sql.SQLTimeoutException e) {
+				th = e;
+				break;
+			} catch (Exception e) {
+				if (d != null) {
+					d.close();
+					d.restart();
+				}
+				th = e;
+			}
+		}
+		if (d != null)
+			d.close();
+		throw new DataSourceNotAvailableException(th);
 	}
 
 	public static DataSource getDataSource(String driverClassName, String url, String userName, String pwd,
@@ -82,31 +116,46 @@ public class JdbcUtil {
 			synchronized (FACTORY_MAP) {
 				dataSource = FACTORY_MAP.get(key);
 				if (dataSource == null) {
-					DruidDataSource createDateSource = new DruidDataSource();
-					createDateSource.setDriverClassName(driverClassName);
-					createDateSource.setUrl(url);
-					createDateSource.setUsername(userName);
-					createDateSource.setPassword(pwd);
+					DruidDataSource druidDateSource = new DruidDataSource();
+					druidDateSource.setDriverClassName(driverClassName);
+					druidDateSource.setUrl(url);
+					druidDateSource.setUsername(userName);
+					druidDateSource.setPassword(pwd);
 					// 添加属性
-					addConnectionProperty(createDateSource, prop);
+					addConnectionProperty(druidDateSource, prop);
 					// 为Oracle和mysql添加属性
 					if (StringUtils.containsIgnoreCase(driverClassName, "oracle"))
-						createDateSource.addConnectionProperty("remarksReporting", "true");
+						druidDateSource.addConnectionProperty("remarksReporting", "true");
 					if (StringUtils.containsIgnoreCase(driverClassName, "mysql"))
-						createDateSource.addConnectionProperty("useInformationSchema", "true");
+						druidDateSource.addConnectionProperty("useInformationSchema", "true");
 					// 其他基本参数
-					createDateSource.setConnectionErrorRetryAttempts(3);
-					createDateSource.setAsyncCloseConnectionEnable(true);
-					createDateSource.setInitialSize(2);
-					createDateSource.setMinIdle(2);
-					createDateSource.setMaxActive(20);
-					createDateSource.setMaxWait(60000L);
-					createDateSource.setTimeBetweenEvictionRunsMillis(60000L);
-					createDateSource.setMinEvictableIdleTimeMillis(300000L);
-					createDateSource.setPoolPreparedStatements(true);
-					createDateSource.setMaxPoolPreparedStatementPerConnectionSize(20);
-					FACTORY_MAP.put(key, createDateSource);
-					dataSource = createDateSource;
+					druidDateSource.setConnectionErrorRetryAttempts(3);
+					druidDateSource.setAsyncCloseConnectionEnable(false);
+//					druidDateSource.setKeepAlive(true);
+//					druidDateSource.setKeepAliveBetweenTimeMillis(keepAliveBetweenTimeMillis);
+					druidDateSource.setAsyncInit(true);
+					druidDateSource.setInitialSize(2);
+					druidDateSource.setMinIdle(2);
+					druidDateSource.setMaxActive(20);
+					druidDateSource.setMaxWait(60000L);
+					druidDateSource.setTimeBetweenEvictionRunsMillis(60000L);
+					druidDateSource.setMinEvictableIdleTimeMillis(300000L);
+					druidDateSource.setPoolPreparedStatements(true);
+					druidDateSource.setMaxPoolPreparedStatementPerConnectionSize(20);
+					try {
+						druidDateSource.setFilters("stat");
+					} catch (Exception e) {
+					}
+					/**
+					 * 配置removeAbandoned对性能会有一些影响，建议怀疑存在泄漏之后再打开。在下面的配置中，如果连接超过30分钟未关闭，就会被强行回收，并且日志记录连接申请时的调用堆栈。
+					 */
+					/*
+					 * druidDateSource.setRemoveAbandoned(true); // 打开removeAbandoned功能
+					 * druidDateSource.setRemoveAbandonedTimeout(1800); // 1800秒，也就是30分钟
+					 * druidDateSource.setLogAbandoned(true); // 关闭abanded连接时输出错误日志
+					 */
+					FACTORY_MAP.put(key, druidDateSource);
+					dataSource = druidDateSource;
 				}
 			}
 		}
@@ -177,8 +226,9 @@ public class JdbcUtil {
 				sb.append(":" + userName);
 			}
 			return sb.toString();
+		} else {
+			return url + ":" + userName;
 		}
-		return null;
 	}
 
 	/**
@@ -231,17 +281,19 @@ public class JdbcUtil {
 	 * 获取table的名称（全名）：如：databaseName.tableName
 	 * 
 	 * @author yzh
+	 * @throws SQLException 
 	 * @date 2019年6月28日
 	 */
-	public static String getTableNameInfo(Connection connection, String catalog, String schema, String tableName) {
+	public static String getTableNameInfo(Connection connection, String catalog, String schema, String tableName)
+			throws SQLException {
 		String tableInfo = "";
-		if (StringUtils.isNotBlank(catalog)) {
-			tableInfo += StringUtils.trim(catalog) + ".";
+		if (StringUtils.isNotBlank(catalog) && !catalog.equalsIgnoreCase("undefined")) {
+			tableInfo += covertName(connection, catalog) + ".";
 		}
-		if (StringUtils.isNotBlank(schema)) {
-			tableInfo += StringUtils.trim(schema) + ".";
+		if (StringUtils.isNotBlank(schema) && schema.equalsIgnoreCase("undefined")) {
+			tableInfo += covertName(connection, schema) + ".";
 		}
-		tableInfo += tableName;
+		tableInfo += covertName(connection, tableName);
 		return tableInfo;
 	}
 
@@ -364,6 +416,29 @@ public class JdbcUtil {
 		}
 
 		return result;
+	}
+
+	/**
+	 * 
+	* @author yzh
+	* @date 2019年7月12日
+	* @Description: 
+	*  @param 根据数据类型来获取诸如：catalog,shema和表的名称
+	 * @throws SQLException 
+	 */
+	public static String covertName(Connection connect, String name) throws SQLException {
+		if (StringUtils.isBlank(name))
+			return name;
+		DatabaseMetaData metaData = connect.getMetaData();
+		boolean storesUpperCaseIdentifiers = metaData.storesUpperCaseIdentifiers();
+		boolean storesLowerCaseIdentifiers = metaData.storesLowerCaseIdentifiers();
+		if (storesUpperCaseIdentifiers) {
+			return StringUtils.upperCase(name).trim();
+		} else if (storesLowerCaseIdentifiers) {
+			return StringUtils.lowerCase(name).trim();
+		} else {
+			return name.trim();
+		}
 	}
 
 	private static void addIndex(ResultSet resultSet, List<Index> result) throws SQLException {

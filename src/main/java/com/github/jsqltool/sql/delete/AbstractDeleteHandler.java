@@ -85,7 +85,7 @@ public abstract class AbstractDeleteHandler implements IdeleteHandler {
 	protected abstract UpdateResult beforeGeneratorSql(Primary primayInfo, UpdateParam param,
 			UpdateResult updateResult);
 
-	private SqlParam getSqlParam(Connection connect, UpdateParam param, Primary primayInfo) {
+	private SqlParam getSqlParam(Connection connect, UpdateParam param, Primary primayInfo) throws SQLException {
 		StringBuilder sb = new StringBuilder();
 		sb.append("delete from ");
 		String tableInfo = JdbcUtil.getTableNameInfo(connect, param.getCatalog(), param.getSchema(),

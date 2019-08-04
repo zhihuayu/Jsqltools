@@ -8,14 +8,17 @@ import org.apache.commons.lang3.StringUtils;
 import com.github.jsqltool.enums.JdbcType;
 import com.github.jsqltool.exception.JsqltoolParamException;
 
-public class LongTypeHandler implements TypeHandler<Long, Long> {
+public class LongTypeHandler implements TypeHandler<String, Long> {
 
+	/**
+	 * 为了兼容浏览器只能显示16为数字而大于16位数字会自动将后面的位数填0，所以这里统一输出为string类型
+	 */
 	@Override
-	public Long handler(ResultSet resultSet, int index, JdbcType type) throws SQLException {
+	public String handler(ResultSet resultSet, int index, JdbcType type) throws SQLException {
 		Object object = resultSet.getObject(index);
 		if (object == null)
 			return null;
-		return resultSet.getLong(index);
+		return resultSet.getString(index);
 	}
 
 	@Override

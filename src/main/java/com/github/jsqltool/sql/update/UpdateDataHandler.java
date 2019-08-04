@@ -127,7 +127,7 @@ public class UpdateDataHandler {
 		return updateResult;
 	}
 
-	private SqlParam getSqlParam(Connection connect, UpdateParam param, Primary primayInfo) {
+	private SqlParam getSqlParam(Connection connect, UpdateParam param, Primary primayInfo) throws SQLException {
 		StringBuilder sb = new StringBuilder();
 		sb.append("update ");
 		String tableInfo = JdbcUtil.getTableNameInfo(connect, param.getCatalog(), param.getSchema(),

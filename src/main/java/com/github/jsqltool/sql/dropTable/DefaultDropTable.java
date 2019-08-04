@@ -39,7 +39,7 @@ public class DefaultDropTable implements IdropTableHandler {
 		return result;
 	}
 
-	private String getDropTableSql(Connection connect, String catalog, String schema, SimpleInfo info) {
+	private String getDropTableSql(Connection connect, String catalog, String schema, SimpleInfo info) throws SQLException {
 		String tableNameInfo = JdbcUtil.getTableNameInfo(connect, catalog, schema, info.getTableName());
 		if (StringUtils.isBlank(tableNameInfo)) {
 			throw new JsqltoolParamException("不能获取table信息！");

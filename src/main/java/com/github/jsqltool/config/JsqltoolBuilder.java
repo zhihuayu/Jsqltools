@@ -25,6 +25,7 @@ import com.github.jsqltool.model.ProfileModel;
 import com.github.jsqltool.param.DropTableParam;
 import com.github.jsqltool.param.ExecutorSqlParam;
 import com.github.jsqltool.param.IndexParam;
+import com.github.jsqltool.param.SelectTableParam;
 import com.github.jsqltool.param.TableColumnsParam;
 import com.github.jsqltool.param.TablesParam;
 import com.github.jsqltool.param.UpdateParam;
@@ -35,6 +36,10 @@ import com.github.jsqltool.sql.TableColumnInfo;
 import com.github.jsqltool.sql.catelog.CatelogHandlerContent;
 import com.github.jsqltool.sql.catelog.DefaultCatelogHandler;
 import com.github.jsqltool.sql.catelog.ICatelogHandler;
+import com.github.jsqltool.sql.createTableView.CreateTableViewHandlerContent;
+import com.github.jsqltool.sql.createTableView.IcreateTableViewHandler;
+import com.github.jsqltool.sql.createTableView.MySqlCreateTableViewHandler;
+import com.github.jsqltool.sql.createTableView.OracleCreateTableViewHandler;
 import com.github.jsqltool.sql.delete.DefaultDeleteHandler;
 import com.github.jsqltool.sql.delete.DeleteHandlerContent;
 import com.github.jsqltool.sql.delete.IdeleteHandler;
@@ -52,6 +57,11 @@ import com.github.jsqltool.sql.insert.InsertHandlerContent;
 import com.github.jsqltool.sql.schema.DefaultSchemaHandler;
 import com.github.jsqltool.sql.schema.IScheamHandler;
 import com.github.jsqltool.sql.schema.SchemaHandlerContent;
+import com.github.jsqltool.sql.selectTable.DefaultSelectTableHandler;
+import com.github.jsqltool.sql.selectTable.MySqlSelectTableHandler;
+import com.github.jsqltool.sql.selectTable.OracleSelectTableHandler;
+import com.github.jsqltool.sql.selectTable.SelectTableContent;
+import com.github.jsqltool.sql.selectTable.SelectTableHandler;
 import com.github.jsqltool.sql.table.DefaultTableHandler;
 import com.github.jsqltool.sql.table.ITableHandler;
 import com.github.jsqltool.sql.table.TableHandlerContent;
@@ -102,6 +112,10 @@ public class JsqltoolBuilder {
 	private final DeleteHandlerContent deleteHandlerContent;
 	// 删除表/视图处理器
 	private final DropTableHandlerContent dropTableHandlerContent;
+	// 获取create语句的处理器
+	private final CreateTableViewHandlerContent createTableViewHandlerContent;
+	// 获取表数据的处理器
+	private final SelectTableContent selectTableContent;
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private JsqltoolBuilder() {
@@ -146,9 +160,7 @@ public class JsqltoolBuilder {
 				} catch (ClassNotFoundException e) {
 					throw new JsqltoolParamException(customerModel + "不存在", e);
 				}
-
 			}
-
 			// 初始化CatelogHandlerContent实例
 			catelog = new CatelogHandlerContent();
 			catelog.addLast(new DefaultCatelogHandler());
@@ -187,7 +199,15 @@ public class JsqltoolBuilder {
 			// 删除表格处理器
 			dropTableHandlerContent = new DropTableHandlerContent();
 			dropTableHandlerContent.addFirst(new DefaultDropTable());
-
+			// 获取create语句的处理器
+			createTableViewHandlerContent = new CreateTableViewHandlerContent();
+			createTableViewHandlerContent.addFirst(new MySqlCreateTableViewHandler());
+			createTableViewHandlerContent.addLast(new OracleCreateTableViewHandler());
+			// 获取表数据的处理器
+			selectTableContent = new SelectTableContent();
+			selectTableContent.addFirst(new DefaultSelectTableHandler());
+			selectTableContent.addFirst(new MySqlSelectTableHandler());
+			selectTableContent.addFirst(new OracleSelectTableHandler());
 		} catch (IOException e) {
 			throw new JsqltoolBuildException("JsqltoolBuilder创建失败", e);
 		} finally {
@@ -283,11 +303,11 @@ public class JsqltoolBuilder {
 	public SqlResult executorSql(Connection connect, ExecutorSqlParam param) throws SQLException {
 		DatabaseMetaData metaData = connect.getMetaData();
 		if (StringUtils.containsIgnoreCase(metaData.getDriverName(), "mysql")) {
-			if (StringUtils.isBlank(param.getCatelog())) {
+			if (StringUtils.isBlank(param.getCatalog())) {
 				logger.warn("mysql数据库必须选择一个databse来执行");
 				throw new SqlExecuteException("mysql数据库必须选择一个databse来执行");
 			}
-			SqlPlus.execute(connect, "use " + param.getCatelog());
+			SqlPlus.execute(connect, "use " + param.getCatalog());
 		}
 		SqlPlus.setPage(param.getPage(), param.getPageSize(), param.getCount(), param.getIsCount(),
 				DBType.getDBTypeByDriverClassName(metaData.getDriverName()));
@@ -350,7 +370,7 @@ public class JsqltoolBuilder {
 		return model.getConnectionInfo(user, connectionName);
 	}
 
-	public List<SimpleTableInfo> listTable(Connection connection, TablesParam param) {
+	public List<SimpleTableInfo> listTable(Connection connection, TablesParam param) throws SQLException {
 		return table.list(connection, param);
 	}
 
@@ -407,6 +427,18 @@ public class JsqltoolBuilder {
 		schema.addLast(handler);
 	}
 
+	public String getCreateTableView(Connection connect, TablesParam param) throws SQLException {
+		return createTableViewHandlerContent.getCreateTableView(connect, param);
+	}
+
+	public void addFirstCreateTableViewHandler(IcreateTableViewHandler handler) {
+		createTableViewHandlerContent.addFirst(handler);
+	}
+
+	public void addLastCreateTableViewHandler(IcreateTableViewHandler handler) {
+		createTableViewHandlerContent.addLast(handler);
+	}
+
 	public UpdateResult dropTable(Connection connect, DropTableParam dropTableParam) throws SQLException {
 		return dropTableHandlerContent.drop(connect, dropTableParam);
 	}
@@ -455,7 +487,19 @@ public class JsqltoolBuilder {
 		updateDataHandlerContent.addLast(handler);
 	}
 
-	public List<String> listCatelog(Connection connection) {
+	public SqlResult selectTable(Connection connection, SelectTableParam param) throws SQLException {
+		return selectTableContent.selectTable(connection, param);
+	}
+
+	public void addFirsSelectTableHandler(SelectTableHandler handler) {
+		selectTableContent.addFirst(handler);
+	}
+
+	public void addLastSelectTableHandler(SelectTableHandler handler) {
+		selectTableContent.addLast(handler);
+	}
+
+	public List<String> listCatalog(Connection connection) {
 		return catelog.list(connection);
 	}
 

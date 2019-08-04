@@ -52,7 +52,7 @@ public class DefaultInsertHandler implements IinertHandler {
 		return SqlPlus.excutePrepareStatement(connect, sqls);
 	}
 
-	private SqlParam getSqlParam(Connection connect, UpdateParam param) {
+	private SqlParam getSqlParam(Connection connect, UpdateParam param) throws SQLException {
 		StringBuilder sb = new StringBuilder();
 		sb.append("insert into ");
 		String tableInfo = JdbcUtil.getTableNameInfo(connect, param.getCatalog(), param.getSchema(),

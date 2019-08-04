@@ -1,6 +1,7 @@
 package com.github.jsqltool.sql.table;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,7 +14,7 @@ public class TableHandlerContent implements ITableHandler {
 	LinkedList<ITableHandler> tables = new LinkedList<>();
 
 	@Override
-	public List<SimpleTableInfo> list(Connection connection, TablesParam param) {
+	public List<SimpleTableInfo> list(Connection connection, TablesParam param) throws SQLException {
 		for (ITableHandler table : tables) {
 			if (table.support(connection)) {
 				return table.list(connection, param);

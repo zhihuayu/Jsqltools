@@ -3,9 +3,9 @@ package com.github.jsqltool.sql.page.dialect;
 public class OracleDialect implements Dialect {
 
 	@Override
-	public String getPageSql(String sql, Integer page, Integer pageSize, long count) {
-		int startRow = getStartRow(page, pageSize, count);
-		int endRow = getEndRow(page, pageSize, count);
+	public String getPageSql(String sql, Integer page, Integer pageSize) {
+		int startRow = getStartRow(page, pageSize);
+		int endRow = getEndRow(page, pageSize);
 		StringBuilder sqlBuilder = new StringBuilder(sql.length() + 120);
 		if (startRow > 0) {
 			sqlBuilder.append("SELECT * FROM ( ");
@@ -25,12 +25,12 @@ public class OracleDialect implements Dialect {
 		return sqlBuilder.toString();
 	}
 
-	private int getStartRow(Integer page, Integer pageSize, long count) {
+	private int getStartRow(Integer page, Integer pageSize) {
 		return page > 0 ? (page - 1) * pageSize : 0;
 	}
 
-	private int getEndRow(Integer page, Integer pageSize, long count) {
-		return getStartRow(page, pageSize, count) + pageSize * (page > 0 ? 1 : 0);
+	private int getEndRow(Integer page, Integer pageSize) {
+		return getStartRow(page, pageSize) + pageSize * (page > 0 ? 1 : 0);
 	}
 
 }

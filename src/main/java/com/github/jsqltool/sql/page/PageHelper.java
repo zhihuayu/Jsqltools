@@ -17,15 +17,16 @@ import com.github.jsqltool.sql.page.dialect.Dialect;
 import com.github.jsqltool.sql.page.dialect.MySqlDialect;
 import com.github.jsqltool.sql.page.dialect.OracleDialect;
 
-public class PageHelper {
+public class PageHelper implements Cloneable {
 
-	private static ConcurrentHashMap<DBType, Dialect> dialecte = new ConcurrentHashMap<>();
+	private final static ConcurrentHashMap<DBType, Dialect> dialecte = new ConcurrentHashMap<>();
 	private static Logger logger = LoggerFactory.getLogger(PageHelper.class);
 	private DBType dbType;
 	private Integer page;
 	private Integer pageSize;
 	private Long count;
 	private Boolean isCount; // 是否计算总页数，默认是计算总页数的
+	private String countSql;
 
 	static {
 		dialecte.put(DBType.MYSQL_TYPE, new MySqlDialect());
@@ -40,21 +41,21 @@ public class PageHelper {
 		this.isCount = isCount;
 	}
 
-	public long getCountSql(Connection connect, String sql) throws SQLException {
+	public long getCountFromSql(Connection connect, String sql) throws SQLException {
 		if (isCount != null && !isCount) {
 			return count;
 		}
+		long startTime = System.currentTimeMillis();
 		long result = 0L;
 		StringBuilder sb = new StringBuilder();
 		sql = StringUtils.trim(sql).toLowerCase();
-		int ind = sql.indexOf("from");
-		if (ind > -1) {
-			sb.append("select count(1) ");
-			sb.append(sql.substring(ind));
-		} else {
-			sb.append("select count(*) from (");
-			sb.append(sql);
-			sb.append(" ) temp_count");
+		sb.append("select count(*) from (");
+		sb.append(sql);
+		sb.append(" ) temp_count");
+		// 有countSql的情况下，就执行该语句来获取行数
+		if (StringUtils.isNotBlank(countSql)) {
+			sb.setLength(0);
+			sb.append(countSql);
 		}
 		try (Statement statement = connect.createStatement();
 				ResultSet resultSet = statement.executeQuery(sb.toString());) {
@@ -67,15 +68,21 @@ public class PageHelper {
 				}
 			}
 		}
-		logger.debug("execute sql {} results:{}", sb.toString(), result);
+		long endTime = System.currentTimeMillis();
+		logger.debug("execute sql:[{}],rowNum:[{}],times:[{}]ms",
+				new Object[] { sb.toString(), result, endTime - startTime });
 		this.count = result;
 		return result;
+	}
+
+	public void setCountSql(String countSql) {
+		this.countSql = countSql;
 	}
 
 	public String getPageSql(String sql) {
 		Dialect dialect = dialecte.get(dbType);
 		if (dialect != null) {
-			return dialect.getPageSql(sql, page, pageSize, count);
+			return dialect.getPageSql(sql, page, pageSize);
 		}
 		return sql;
 	}
@@ -110,6 +117,11 @@ public class PageHelper {
 
 	public void setCount(Long count) {
 		this.count = count;
+	}
+
+	@Override
+	public Object clone() throws CloneNotSupportedException {
+		return super.clone();
 	}
 
 }

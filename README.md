@@ -136,7 +136,12 @@ public class IcbcModel implements IModel {
    支持一次性删除多张表/视图
    方法：`UpdateResult dropTable(Connection connect, DropTableParam dropTableParam)`
    参数：DropTableParam 表/视图信息的参数
-   
+
+### 获取表数据
+  获取某个表的数据，需要提供catalog、schema、tableName以及分行信息
+  方法：`SqlResult selectTable(Connection connection, SelectTableParam param) throws SQLException`
+
+
  
 
   
