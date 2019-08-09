@@ -86,7 +86,7 @@ public class DefaultInsertHandler implements IinertHandler {
 		StringBuilder fields = new StringBuilder(" (");
 		StringBuilder variables = new StringBuilder(" (");
 		for (ChangeValue v : values) {
-			if (StringUtils.equalsIgnoreCase("rowid", v.getColumnName())) {
+			if (StringUtils.equalsIgnoreCase("rowid", v.getColumnName())||StringUtils.equalsIgnoreCase("row_id", v.getColumnName())) {
 				continue;
 			}
 			fields.append(v.getColumnName() + ",");

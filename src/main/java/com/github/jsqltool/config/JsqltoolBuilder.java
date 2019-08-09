@@ -25,6 +25,7 @@ import com.github.jsqltool.model.ProfileModel;
 import com.github.jsqltool.param.DropTableParam;
 import com.github.jsqltool.param.ExecutorSqlParam;
 import com.github.jsqltool.param.IndexParam;
+import com.github.jsqltool.param.ProcedureParam;
 import com.github.jsqltool.param.SelectTableParam;
 import com.github.jsqltool.param.TableColumnsParam;
 import com.github.jsqltool.param.TablesParam;
@@ -517,6 +518,10 @@ public class JsqltoolBuilder {
 
 	public void addLastIndexInfoHandler(IIndexInfoHandler handler) {
 		indexInfoHandlerContent.addLast(handler);
+	}
+
+	public String executeCall(Connection connection, ProcedureParam param) throws SQLException {
+		return SqlPlus.executeCall(connection, param);
 	}
 
 	static class Builder {

@@ -140,6 +140,10 @@ public class IcbcModel implements IModel {
 ### 获取表数据
   获取某个表的数据，需要提供catalog、schema、tableName以及分行信息
   方法：`SqlResult selectTable(Connection connection, SelectTableParam param) throws SQLException`
+  
+### 存储过程、存储函数以及Oracle包的调用
+  获取某个表的数据，需要提供catalog、schema、tableName以及分行信息
+  方法：`String executeCall(Connection connection, ProcedureParam param) throws SQLException`
 
 
  

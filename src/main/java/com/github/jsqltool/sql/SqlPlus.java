@@ -7,6 +7,7 @@ import java.io.StringReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.sql.PooledConnection;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,8 @@ import com.github.jsqltool.enums.JdbcType;
 import com.github.jsqltool.exception.CountSqlException;
 import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.model.IModel;
+import com.github.jsqltool.param.ProcedureParam;
+import com.github.jsqltool.param.ProcedureParam.P_Param;
 import com.github.jsqltool.param.SqlParam;
 import com.github.jsqltool.sql.page.PageHelper;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
@@ -171,6 +175,97 @@ public class SqlPlus {
 			}
 		}
 		return object;
+	}
+
+	@SuppressWarnings("rawtypes")
+	public static String executeCall(Connection connection, ProcedureParam procedure) throws SQLException {
+		StringBuilder result = new StringBuilder();
+		if (procedure != null && StringUtils.isNotBlank(procedure.getProcedureName())) {
+			long startTime=System.currentTimeMillis();
+			JsqltoolBuilder builder = JsqltoolBuilder.builder();
+			TypeHandler typeHandler = builder.getTypeHandler();
+			StringBuilder sql = new StringBuilder();
+			sql.append("{ ");
+			JdbcType returnType = procedure.getReturnType();
+			if (returnType != null) {
+				sql.append(" ?= ");
+			}
+			sql.append("call ");
+			sql.append(procedure.getProcedureName().trim());
+			sql.append("(");
+			// 参数
+			if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
+				for (P_Param p : procedure.getParams()) {
+					ProcedureParam.checkParam(p);
+					sql.append("?,");
+				}
+				sql.setLength(sql.length() - 1);
+			}
+			sql.append(") }");
+			CallableStatement prepareCall = connection.prepareCall(sql.toString());
+			// 设置参数
+			// 返回值
+			if (returnType != null) {
+				prepareCall.registerOutParameter(1, returnType.TYPE_CODE);
+			}
+			// 参数
+			if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
+				for (P_Param p : procedure.getParams()) {
+					// IN参数
+					if (p.getType().toUpperCase().contains("IN")) {
+						if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
+							Integer ind = p.getParamIndex();
+							if (returnType != null)
+								ind++;
+							prepareCall.setObject(ind, typeHandler.getParam(p.getValue(), p.getDataType()));
+						} else {
+							prepareCall.setObject(p.getParamName().trim(),
+									typeHandler.getParam(p.getValue(), p.getDataType()));
+						}
+					}
+					// OUT参数
+					if (p.getType().toUpperCase().contains("OUT")) {
+						if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
+							Integer ind = p.getParamIndex();
+							if (returnType != null)
+								ind++;
+							prepareCall.registerOutParameter(ind, p.getDataType().TYPE_CODE);
+						} else {
+							prepareCall.registerOutParameter(p.getParamName().trim(), p.getDataType().TYPE_CODE);
+						}
+					}
+				}
+			}
+			// 执行
+			prepareCall.execute();
+			result.append("存储过程 " + procedure.getProcedureName() + " 执行成功！");
+			// 获取out类型的结果
+			if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
+				result.append("\n");
+				for (P_Param p : procedure.getParams()) {
+					// OUT参数
+					if (p.getType().toUpperCase().contains("OUT")) {
+						result.append(p.getType().trim().toUpperCase() + "参数 ");
+						if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
+							Integer ind = p.getParamIndex();
+							if (returnType != null)
+								ind++;
+							result.append(p.getParamIndex() + ":" + prepareCall.getObject(ind));
+						} else {
+							result.append(p.getParamName() + ":" + prepareCall.getObject(p.getParamName()));
+						}
+					}
+				}
+			}
+			// 获取结果
+			if (returnType != null) {
+				result.append("\n返回值为：" + prepareCall.getObject(1));
+			}
+			result.append("\n耗时："+(System.currentTimeMillis()-startTime)+"ms");
+		} else {
+			result.append("存储过程为空！");
+		}
+		return result.toString();
 	}
 
 	public static SqlResult execute(Connection connection, String sql) {
