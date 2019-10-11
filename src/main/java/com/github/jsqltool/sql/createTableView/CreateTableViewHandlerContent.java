@@ -6,14 +6,24 @@ import java.util.LinkedList;
 
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.exception.CreateTableViewException;
-import com.github.jsqltool.param.TablesParam;
+import com.github.jsqltool.param.DBObjectParam;
 
 public class CreateTableViewHandlerContent implements IcreateTableViewHandler {
 
 	LinkedList<IcreateTableViewHandler> deleteHandlers = new LinkedList<>();
 
+	private CreateTableViewHandlerContent() {
+	}
+
+	public static CreateTableViewHandlerContent builder() {
+		CreateTableViewHandlerContent createTableViewHandlerContent = new CreateTableViewHandlerContent();
+		createTableViewHandlerContent.addFirst(new MySqlCreateTableViewHandler());
+		createTableViewHandlerContent.addLast(new OracleCreateTableViewHandler());
+		return createTableViewHandlerContent;
+	}
+
 	@Override
-	public String getCreateTableView(Connection connect, TablesParam param) throws SQLException {
+	public String getCreateTableView(Connection connect, DBObjectParam param) throws SQLException {
 		DBType dbType = DBType.getDBTypeByDriverClassName(connect.getMetaData().getDriverName());
 		for (IcreateTableViewHandler handler : deleteHandlers) {
 			if (handler.support(dbType)) {

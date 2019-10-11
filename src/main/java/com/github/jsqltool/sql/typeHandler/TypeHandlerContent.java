@@ -11,6 +11,19 @@ public class TypeHandlerContent implements TypeHandler {
 
 	private LinkedList<TypeHandler> tableHandlers = new LinkedList<>();
 
+	private TypeHandlerContent() {
+	}
+
+	public static TypeHandlerContent builder() {
+		TypeHandlerContent typeHandlerContent = new TypeHandlerContent();
+		typeHandlerContent.addFirst(new NumberTypeHandler());
+		typeHandlerContent.addFirst(new LongTypeHandler());
+		typeHandlerContent.addFirst(new IntegerTypeHandler());
+		typeHandlerContent.addFirst(new DateTypeHandler());
+		typeHandlerContent.addFirst(new ClobTypeHandler());
+		return typeHandlerContent;
+	}
+
 	@Override
 	public Object handler(ResultSet resultSet, int index, JdbcType type) throws SQLException {
 		for (TypeHandler handler : tableHandlers) {

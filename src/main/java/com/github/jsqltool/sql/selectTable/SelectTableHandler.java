@@ -5,7 +5,7 @@ import java.sql.SQLException;
 
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.param.SelectTableParam;
-import com.github.jsqltool.sql.SqlPlus.SqlResult;
+import com.github.jsqltool.result.SqlResult;
 
 /**
  * 

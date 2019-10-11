@@ -1,4 +1,4 @@
-package com.github.jsqltool.sql;
+package com.github.jsqltool.result;
 
 public class SimpleTableInfo {
 	private String tableName;

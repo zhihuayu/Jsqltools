@@ -9,10 +9,10 @@ import org.apache.commons.lang3.StringUtils;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.exception.CreateTableViewException;
 import com.github.jsqltool.exception.JsqltoolParamException;
-import com.github.jsqltool.param.TablesParam;
+import com.github.jsqltool.param.DBObjectParam;
+import com.github.jsqltool.result.SqlResult;
+import com.github.jsqltool.result.SqlResult.Record;
 import com.github.jsqltool.sql.SqlPlus;
-import com.github.jsqltool.sql.SqlPlus.Record;
-import com.github.jsqltool.sql.SqlPlus.SqlResult;
 import com.github.jsqltool.utils.JdbcUtil;
 
 /**
@@ -23,15 +23,15 @@ import com.github.jsqltool.utils.JdbcUtil;
 public class OracleCreateTableViewHandler implements IcreateTableViewHandler {
 
 	@Override
-	public String getCreateTableView(Connection connect, TablesParam param) throws SQLException {
-		if (param == null || StringUtils.isBlank(param.getSchema()) || StringUtils.isBlank(param.getTable())) {
+	public String getCreateTableView(Connection connect, DBObjectParam param) throws SQLException {
+		if (param == null || StringUtils.isBlank(param.getSchema()) || StringUtils.isBlank(param.getName())) {
 			throw new JsqltoolParamException("数据库名称和表名不能为空！");
 		}
 		String type = StringUtils.isBlank(param.getType()) ? "TABLE" : StringUtils.upperCase(param.getType());
 		StringBuilder sb = new StringBuilder();
 		sb.append("select dbms_metadata.get_ddl( ");
 		sb.append("'" + type.trim() + "',");
-		sb.append("'" + JdbcUtil.covertName(connect, param.getTable())
+		sb.append("'" + JdbcUtil.covertName(connect, param.getName())
 				+ "'");
 		sb.append(")");
 		sb.append(" from dual");

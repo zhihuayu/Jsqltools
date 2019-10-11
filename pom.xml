@@ -50,6 +50,12 @@
 			<artifactId>ojdbc7</artifactId>
 			<version>12.1.0.2</version>
 		</dependency>
+		<!-- 在Oracle的存储过程的dbms_output.get_lines中需要用到，否则会乱码 -->
+		<dependency>
+			<groupId>cn.easyproject</groupId>
+			<artifactId>orai18n</artifactId>
+			<version>11.2.0.4</version>
+		</dependency>
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>

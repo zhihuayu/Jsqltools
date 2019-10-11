@@ -1,9 +1,14 @@
-package com.github.jsqltool.sql;
+package com.github.jsqltool.result;
 
 import java.sql.Types;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 表的列信息 
+ * @author yzh
+ * @date 2019年8月10日
+ */
 public class TableColumnInfo {
 
 	public final static int TABLE_CAT = 1;

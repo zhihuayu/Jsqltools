@@ -16,6 +16,8 @@ import com.github.jsqltool.exception.JsqltoolParamException;
  */
 public class ProcedureParam {
 
+	private String catalog;
+	private String schema;
 	private String procedureName;
 	// 如果没有返回值则为NULL
 	private JdbcType returnType;
@@ -35,6 +37,22 @@ public class ProcedureParam {
 		if (StringUtils.isBlank(p.getType())) {
 			throw new JsqltoolParamException("参数的类型不能为空！");
 		}
+	}
+
+	public String getCatalog() {
+		return catalog;
+	}
+
+	public void setCatalog(String catalog) {
+		this.catalog = catalog;
+	}
+
+	public String getSchema() {
+		return schema;
+	}
+
+	public void setSchema(String schema) {
+		this.schema = schema;
 	}
 
 	public String getProcedureName() {

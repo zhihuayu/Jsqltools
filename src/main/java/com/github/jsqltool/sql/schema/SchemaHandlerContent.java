@@ -9,6 +9,15 @@ public class SchemaHandlerContent implements IScheamHandler {
 
 	LinkedList<IScheamHandler> schemas = new LinkedList<>();
 
+	private SchemaHandlerContent() {
+	}
+
+	public static SchemaHandlerContent builder() {
+		SchemaHandlerContent schema = new SchemaHandlerContent();
+		schema.addLast(new DefaultSchemaHandler());
+		return schema;
+	}
+
 	@Override
 	public List<String> list(Connection connection, String catelog) {
 		for (IScheamHandler schema : schemas) {

@@ -13,6 +13,17 @@ public class UpdateDataHandlerContent implements IUpdateDataHandler {
 
 	LinkedList<IUpdateDataHandler> updateDataHandler = new LinkedList<>();
 
+	private UpdateDataHandlerContent() {
+	}
+
+	public static UpdateDataHandlerContent builder() {
+		UpdateDataHandlerContent updateDataHandlerContent = new UpdateDataHandlerContent();
+		updateDataHandlerContent.addLast(new DefaultUpdateDataHandler());
+		updateDataHandlerContent.addFirst(new MySqlUpdateDataHandler());
+		updateDataHandlerContent.addFirst(new OracleUpdateDataHandler());
+		return updateDataHandlerContent;
+	}
+
 	@Override
 	public UpdateResult update(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
 		DBType dbType = DBType.getDBTypeByDriverClassName(connect.getMetaData().getDriverName());

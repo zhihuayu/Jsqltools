@@ -4,7 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 import com.github.jsqltool.enums.DBType;
-import com.github.jsqltool.param.TablesParam;
+import com.github.jsqltool.param.DBObjectParam;
 
 /**
  * 获取数据表创建语句的基础接口
@@ -21,7 +21,7 @@ public interface IcreateTableViewHandler {
 	* @return 返回值诸如：
 	*   create table xxx ( id number,name varchar2(30) );等等
 	 */
-	String getCreateTableView(Connection connect, TablesParam param) throws SQLException;
+	String getCreateTableView(Connection connect, DBObjectParam param) throws SQLException;
 
 	boolean support(DBType dbType);
 

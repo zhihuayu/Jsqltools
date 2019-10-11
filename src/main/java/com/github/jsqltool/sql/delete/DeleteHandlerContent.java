@@ -13,6 +13,17 @@ public class DeleteHandlerContent implements IdeleteHandler {
 
 	LinkedList<IdeleteHandler> deleteHandlers = new LinkedList<>();
 
+	private DeleteHandlerContent() {
+	}
+
+	public static DeleteHandlerContent builder() {
+		DeleteHandlerContent deleteHandlerContent = new DeleteHandlerContent();
+		deleteHandlerContent.addLast(new DefaultDeleteHandler());
+		deleteHandlerContent.addFirst(new MySqlDeleteHandler());
+		deleteHandlerContent.addFirst(new OracleDeleteHandler());
+		return deleteHandlerContent;
+	}
+
 	@Override
 	public UpdateResult delete(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException {
 		DBType dbType = DBType.getDBTypeByDriverClassName(connect.getMetaData().getDriverName());

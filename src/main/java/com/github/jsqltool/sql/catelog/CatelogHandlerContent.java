@@ -9,6 +9,15 @@ public class CatelogHandlerContent implements ICatelogHandler {
 
 	LinkedList<ICatelogHandler> catelogs = new LinkedList<>();
 
+	private CatelogHandlerContent() {
+	}
+
+	public static CatelogHandlerContent builder() {
+		CatelogHandlerContent catelog = new CatelogHandlerContent();
+		catelog.addLast(new DefaultCatelogHandler());
+		return catelog;
+	}
+
 	@Override
 	public List<String> list(Connection connection) {
 		for (ICatelogHandler catelog : catelogs) {

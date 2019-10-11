@@ -14,7 +14,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -45,6 +44,9 @@ import com.github.jsqltool.model.IModel;
 import com.github.jsqltool.param.ProcedureParam;
 import com.github.jsqltool.param.ProcedureParam.P_Param;
 import com.github.jsqltool.param.SqlParam;
+import com.github.jsqltool.result.SqlResult;
+import com.github.jsqltool.result.SqlResult.Column;
+import com.github.jsqltool.result.SqlResult.Record;
 import com.github.jsqltool.sql.page.PageHelper;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
 import com.github.jsqltool.utils.JdbcUtil;
@@ -61,6 +63,7 @@ public class SqlPlus {
 	private static final int DROP = 7;
 	private static final int SHOW = 8;
 	private static final int UNKNOWN = 99;
+	private static final int BLOCK = 11; // 语句块
 	private static final Logger logger = LoggerFactory.getLogger(SqlPlus.class);
 	private static final ThreadLocal<PageHelper> pageHelper = new ThreadLocal<>();
 	private static final ExecutorService executorCountSqlService = Executors
@@ -181,7 +184,7 @@ public class SqlPlus {
 	public static String executeCall(Connection connection, ProcedureParam procedure) throws SQLException {
 		StringBuilder result = new StringBuilder();
 		if (procedure != null && StringUtils.isNotBlank(procedure.getProcedureName())) {
-			long startTime=System.currentTimeMillis();
+			long startTime = System.currentTimeMillis();
 			JsqltoolBuilder builder = JsqltoolBuilder.builder();
 			TypeHandler typeHandler = builder.getTypeHandler();
 			StringBuilder sql = new StringBuilder();
@@ -191,7 +194,8 @@ public class SqlPlus {
 				sql.append(" ?= ");
 			}
 			sql.append("call ");
-			sql.append(procedure.getProcedureName().trim());
+			sql.append(JdbcUtil.getTableNameInfo(connection, procedure.getCatalog(), procedure.getSchema(),
+					procedure.getProcedureName().trim()));
 			sql.append("(");
 			// 参数
 			if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
@@ -202,68 +206,84 @@ public class SqlPlus {
 				sql.setLength(sql.length() - 1);
 			}
 			sql.append(") }");
-			CallableStatement prepareCall = connection.prepareCall(sql.toString());
-			// 设置参数
-			// 返回值
-			if (returnType != null) {
-				prepareCall.registerOutParameter(1, returnType.TYPE_CODE);
-			}
-			// 参数
-			if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
-				for (P_Param p : procedure.getParams()) {
-					// IN参数
-					if (p.getType().toUpperCase().contains("IN")) {
-						if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
-							Integer ind = p.getParamIndex();
-							if (returnType != null)
-								ind++;
-							prepareCall.setObject(ind, typeHandler.getParam(p.getValue(), p.getDataType()));
-						} else {
-							prepareCall.setObject(p.getParamName().trim(),
-									typeHandler.getParam(p.getValue(), p.getDataType()));
+			try (CallableStatement prepareCall = connection.prepareCall(sql.toString());) {
+				// 设置参数
+				// 返回值
+				if (returnType != null) {
+					prepareCall.registerOutParameter(1, returnType.TYPE_CODE);
+				}
+				// 参数
+				if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
+					for (P_Param p : procedure.getParams()) {
+						// IN参数
+						if (p.getType().toUpperCase().contains("IN")) {
+							if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
+								Integer ind = p.getParamIndex();
+								if (returnType != null)
+									ind++;
+								prepareCall.setObject(ind, typeHandler.getParam(p.getValue(), p.getDataType()));
+							} else {
+								prepareCall.setObject(p.getParamName().trim(),
+										typeHandler.getParam(p.getValue(), p.getDataType()));
+							}
 						}
-					}
-					// OUT参数
-					if (p.getType().toUpperCase().contains("OUT")) {
-						if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
-							Integer ind = p.getParamIndex();
-							if (returnType != null)
-								ind++;
-							prepareCall.registerOutParameter(ind, p.getDataType().TYPE_CODE);
-						} else {
-							prepareCall.registerOutParameter(p.getParamName().trim(), p.getDataType().TYPE_CODE);
+						// OUT参数
+						if (p.getType().toUpperCase().contains("OUT")) {
+							if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
+								Integer ind = p.getParamIndex();
+								if (returnType != null)
+									ind++;
+								prepareCall.registerOutParameter(ind, p.getDataType().TYPE_CODE);
+							} else {
+								prepareCall.registerOutParameter(p.getParamName().trim(), p.getDataType().TYPE_CODE);
+							}
 						}
 					}
 				}
-			}
-			// 执行
-			prepareCall.execute();
-			result.append("存储过程 " + procedure.getProcedureName() + " 执行成功！");
-			// 获取out类型的结果
-			if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
-				result.append("\n");
-				for (P_Param p : procedure.getParams()) {
-					// OUT参数
-					if (p.getType().toUpperCase().contains("OUT")) {
-						result.append(p.getType().trim().toUpperCase() + "参数 ");
-						if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
-							Integer ind = p.getParamIndex();
-							if (returnType != null)
-								ind++;
-							result.append(p.getParamIndex() + ":" + prepareCall.getObject(ind));
-						} else {
-							result.append(p.getParamName() + ":" + prepareCall.getObject(p.getParamName()));
+				// 执行
+				prepareCall.execute();
+				result.append("存储过程 " + procedure.getProcedureName() + " 执行成功！");
+				// 获取out类型的结果
+				if (procedure.getParams() != null && !procedure.getParams().isEmpty()) {
+					result.append("\n");
+					for (P_Param p : procedure.getParams()) {
+						// OUT参数
+						if (p.getType().toUpperCase().contains("OUT")) {
+							result.append(p.getType().trim().toUpperCase() + "参数 ");
+							if (p.getParamIndex() != null && p.getParamIndex().compareTo(0) > 0) {
+								Integer ind = p.getParamIndex();
+								if (returnType != null)
+									ind++;
+								result.append(p.getParamIndex() + ":" + prepareCall.getObject(ind));
+							} else {
+								result.append(p.getParamName() + ":" + prepareCall.getObject(p.getParamName()));
+							}
 						}
 					}
 				}
+				// 获取结果
+				if (returnType != null) {
+					result.append("\n返回值为：" + prepareCall.getObject(1));
+				}
+				result.append("\n耗时：" + (System.currentTimeMillis() - startTime) + "ms");
 			}
-			// 获取结果
-			if (returnType != null) {
-				result.append("\n返回值为：" + prepareCall.getObject(1));
-			}
-			result.append("\n耗时："+(System.currentTimeMillis()-startTime)+"ms");
 		} else {
-			result.append("存储过程为空！");
+			throw new JsqltoolParamException("存储过程不能为空");
+		}
+		return result.toString();
+	}
+
+	public static String executeCall(Connection connection, String blockSql) throws SQLException {
+		StringBuilder result = new StringBuilder();
+		if (StringUtils.isNotBlank(blockSql)) {
+			long startTime = System.currentTimeMillis();
+			try (CallableStatement prepareCall = connection.prepareCall(blockSql);) {
+				prepareCall.execute();
+				result.append("程序块执行成功：");
+				result.append("\n耗时：" + (System.currentTimeMillis() - startTime) + "ms");
+			}
+		} else {
+			throw new JsqltoolParamException("存储过程不能为空");
 		}
 		return result.toString();
 	}
@@ -283,26 +303,27 @@ public class SqlPlus {
 			} else {
 				bufferedReader = new BufferedReader(reader);
 			}
-			String sql = null;
+			SqlParser sqlParser = null;
 			statement = connection.createStatement();
 
-			while ((sql = getSql(bufferedReader)) != null) {
-				int type = getSqlType(sql);
+			while ((sqlParser = getSqlParser(bufferedReader)) != null) {
+				int type = sqlParser.getSqlType();
+				String sql = sqlParser.getSql();
 				logger.info("type: {}, sql: {}", type, sql);
-
-				if (type == SELECT) {
-					return selectAndPage(connection, sql, type);
-				}
-
-				if (type == SHOW) {
-					return selectAndPage(connection, sql, type);
-				}
-
 				try {
+					if (type == SELECT || type == SHOW) {
+						return makeSqlResult(selectAndPage(connection, sql, type), result);
+					}
+					if (type == BLOCK) {
+						JsqltoolBuilder builder = JsqltoolBuilder.builder();
+						String executeCall = builder.executeCall(connection, sql);
+						result.append("\n");
+						result.append(executeCall);
+						continue;
+					}
 					long t1 = System.currentTimeMillis();
 					int count = statement.executeUpdate(sql);
 					long t2 = System.currentTimeMillis();
-
 					result.append("[SQL]: ");
 					result.append(sql);
 					result.append("\r\n");
@@ -314,6 +335,7 @@ public class SqlPlus {
 					result.append("ms\r\n\r\n");
 				} catch (SQLException e) {
 					logger.error(e.getMessage(), e);
+					status = 500;
 					result.append("[SQL]: ");
 					result.append(sql);
 					result.append("\r\n\r\n");
@@ -338,25 +360,106 @@ public class SqlPlus {
 		return new SqlResult(status, result.toString());
 	}
 
-	public static String getSql(BufferedReader bufferedReader) throws IOException {
+	private static SqlResult makeSqlResult(SqlResult sqlResult, StringBuilder strBuilder) {
+		if (sqlResult != null && strBuilder != null && strBuilder.length() > 0) {
+			strBuilder.append("\n\r" + sqlResult.getMessage());
+			sqlResult.setMessage(strBuilder.toString());
+		}
+		return sqlResult;
+	}
+
+	private static class SqlParser {
+		private String sql;
+		private int sqlType;
+
+		public String getSql() {
+			return sql;
+		}
+
+		public void setSql(String sql) {
+			this.sql = sql;
+		}
+
+		public int getSqlType() {
+			return sqlType;
+		}
+
+		public void setSqlType(int sqlType) {
+			this.sqlType = sqlType;
+		}
+	}
+
+	public static SqlParser getSqlParser(BufferedReader bufferedReader) throws IOException {
 		String line = null;
 		StringBuilder buffer = new StringBuilder();
-
+		boolean isBlock = false;
+		SqlParser sql = new SqlParser();
 		while ((line = bufferedReader.readLine()) != null) {
 			line = line.trim();
-
 			if (line.length() < 1 || line.startsWith("--")) {
 				continue;
 			}
-
-			if (line.endsWith(";")) {
-				buffer.append(line.substring(0, line.length() - 1));
-				buffer.append(" ");
-				break;
-			} else {
+			// 查看： $begin_block; 和 $end_block;包起来的程序块
+			if (!isBlock && buffer.length() == 0 && line.contains("$begin_block") && line.endsWith(";")) {
+				isBlock = true;
+				continue;
+			}
+			if (isBlock) {
+				if (line.contains("$end_block") && line.endsWith(";")) {
+					sql.setSqlType(BLOCK);
+					break;
+				}
 				buffer.append(line);
 				buffer.append(" ");
+			} else {
+				if (line.endsWith(";")) {
+					buffer.append(line.substring(0, line.length() - 1));
+					buffer.append(" ");
+					break;
+				} else {
+					buffer.append(line);
+					buffer.append(" ");
+				}
 			}
+		}
+		if (buffer.length() > 0) {
+			sql.setSql(buffer.toString());
+			if (sql.getSqlType() <= 0)
+				sql.setSqlType(getSqlType(sql.getSql()));
+		}
+		return (buffer.length() > 0 ? sql : null);
+	}
+
+	private static String getSql(BufferedReader bufferedReader) throws IOException {
+		String line = null;
+		StringBuilder buffer = new StringBuilder();
+		boolean isBlock = false;
+		while ((line = bufferedReader.readLine()) != null) {
+			line = line.trim();
+			if (line.length() < 1 || line.startsWith("--")) {
+				continue;
+			}
+			// 查看： $begin_block; 和 $end_block;包起来的程序块
+			if (!isBlock && buffer.length() == 0 && line.contains("$begin_block") && line.endsWith(";")) {
+				isBlock = true;
+			}
+			if (isBlock) {
+				if (line.contains("$end_block") && line.endsWith(";")) {
+					break;
+				}
+				buffer.append(line);
+				buffer.append(" ");
+			} else {
+				if (line.endsWith(";")) {
+					buffer.append(line.substring(0, line.length() - 1));
+					buffer.append(" ");
+					break;
+				} else {
+					buffer.append(line);
+					buffer.append(" ");
+				}
+			}
+
 		}
 		return (buffer.length() > 0 ? buffer.toString() : null);
 	}
@@ -545,165 +648,6 @@ public class SqlPlus {
 		}
 	}
 
-	public static class SqlResult {
-		private int status;
-		private String message;
-		private List<Column> columns;
-		private List<Record> records;
-		private long count; // 总数
-		private long page; // 当前页
-		private long pageSize; // 每页大小
-
-		public SqlResult() {
-		}
-
-		public SqlResult(int status, String message) {
-			this.status = status;
-			this.message = message;
-		}
-
-		public long getCount() {
-			return count;
-		}
-
-		public void setCount(long count) {
-			this.count = count;
-		}
-
-		public long getPage() {
-			return page;
-		}
-
-		public void setPage(long page) {
-			this.page = page;
-		}
-
-		public long getPageSize() {
-			return pageSize;
-		}
-
-		public void setPageSize(long pageSize) {
-			this.pageSize = pageSize;
-		}
-
-		public boolean success() {
-			return (this.status == 200);
-		}
-
-		public static SqlResult success(String message) {
-			return new SqlResult(200, message);
-		}
-
-		public static SqlResult error(String message) {
-			return new SqlResult(500, message);
-		}
-
-		public int getStatus() {
-			return this.status;
-		}
-
-		public void setStatus(int status) {
-			this.status = status;
-		}
-
-		public String getMessage() {
-			return this.message;
-		}
-
-		public void setMessage(String message) {
-			this.message = message;
-		}
-
-		public List<Column> getColumns() {
-			return this.columns;
-		}
-
-		public void setColumns(List<Column> columns) {
-			this.columns = columns;
-		}
-
-		public List<Record> getRecords() {
-			return this.records;
-		}
-
-		public void setRecords(List<Record> records) {
-			this.records = records;
-		}
-	}
-
-	public static class Column {
-		private String alias;
-		private String columnName;
-		/**
-		 * {@link Types}类型
-		 */
-		private Integer dataType;
-		private String typeName;
-		private Boolean autoIncrement;
-
-		public String getAlias() {
-			return alias;
-		}
-
-		public void setAlias(String alias) {
-			this.alias = alias;
-		}
-
-		public String getColumnName() {
-			return columnName;
-		}
-
-		public void setColumnName(String columnName) {
-			this.columnName = columnName;
-		}
-
-		public Integer getDataType() {
-			return dataType;
-		}
-
-		public void setDataType(Integer dataType) {
-			this.dataType = dataType;
-		}
-
-		public String getTypeName() {
-			return typeName;
-		}
-
-		public void setTypeName(String typeName) {
-			this.typeName = typeName;
-		}
-
-		public Boolean getAutoIncrement() {
-			return autoIncrement;
-		}
-
-		public void setAutoIncrement(Boolean autoIncrement) {
-			this.autoIncrement = autoIncrement;
-		}
-
-	}
-
-	public static class Record {
-
-		private List<Object> values;
-
-		public Record() {
-		}
-
-		public Record(List<Object> values) {
-			this.values = values;
-		}
-
-		public List<Object> getValues() {
-			return this.values;
-		}
-
-		public void setValues(List<Object> values) {
-			this.values = values;
-		}
-
-	}
-
 	// 专门用于执行count表的任务
 	private static class CountTask implements Callable<Long> {
 
@@ -750,6 +694,7 @@ public class SqlPlus {
 		IModel model = JsqltoolBuilder.builder().getModel();
 		ConnectionInfo loadConnectionInfo = model.getConnectionInfo("", "测试MySql");
 		Connection connect = JdbcUtil.connect(loadConnectionInfo);
+
 		execute(connect, "use test");
 		String sql = "  select" + " * from student;";
 		System.out.println(execute(connect, sql));

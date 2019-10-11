@@ -12,6 +12,15 @@ import com.github.jsqltool.vo.UpdateResult;
 public class InsertHandlerContent implements IinertHandler {
 	LinkedList<IinertHandler> insertHandlerContent = new LinkedList<>();
 
+	private InsertHandlerContent() {
+	}
+
+	public static InsertHandlerContent builder() {
+		InsertHandlerContent insertHandlerContent = new InsertHandlerContent();
+		insertHandlerContent.addFirst(new DefaultInsertHandler());
+		return insertHandlerContent;
+	}
+
 	@Override
 	public UpdateResult insert(Connection connect, List<UpdateParam> updates) throws SQLException {
 		DBType dbType = DBType.getDBTypeByDriverClassName(connect.getMetaData().getDriverName());

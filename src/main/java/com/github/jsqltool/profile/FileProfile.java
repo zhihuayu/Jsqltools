@@ -23,14 +23,17 @@ public class FileProfile {
 	private final String fileSeparator = File.separator;
 	private final String profilePorpPrefix;
 
+	private final static String filePathKey = "jsqltool.profiles.filePath";
+	private final static String defaultFilePath = "dbProfile";
+
 	public FileProfile(Properties prop) {
 		if (prop == null) {
 			throw new JsqltoolParamException("Jsqltool配置文件不存在！!");
 		}
 		// 设置文件路径
-		String filePath = prop.getProperty("jsqltool.profiles.filePath");
+		String filePath = prop.getProperty(filePathKey);
 		if (StringUtils.isBlank(filePath)) {
-			this.filePath = "/dbProfile";
+			this.filePath = "/" + defaultFilePath;
 		} else {
 			this.filePath = "/" + filePath.trim();
 		}

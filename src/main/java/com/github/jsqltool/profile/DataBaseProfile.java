@@ -13,10 +13,10 @@ import org.apache.commons.lang3.StringUtils;
 import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.exception.JsqltoolParamException;
+import com.github.jsqltool.result.SqlResult;
+import com.github.jsqltool.result.SqlResult.Column;
+import com.github.jsqltool.result.SqlResult.Record;
 import com.github.jsqltool.sql.SqlPlus;
-import com.github.jsqltool.sql.SqlPlus.Column;
-import com.github.jsqltool.sql.SqlPlus.Record;
-import com.github.jsqltool.sql.SqlPlus.SqlResult;
 import com.github.jsqltool.utils.JdbcUtil;
 
 public class DataBaseProfile {
@@ -68,7 +68,7 @@ public class DataBaseProfile {
 	}
 
 	public List<String> listConnection(String user) throws SQLException {
-		try (Connection connect = JsqltoolBuilder.builder().connect(connectionInfo);) {
+		try (Connection connect = connect();) {
 			String sql = "select f_name from " + tableName + " where ";
 			if (StringUtils.isBlank(user)) {
 				sql += "f_user = '' or f_user = ' ' ";
@@ -94,7 +94,7 @@ public class DataBaseProfile {
 	}
 
 	public boolean save(String user, String oldConnectionName, ConnectionInfo info) throws SQLException {
-		try (Connection connect = JsqltoolBuilder.builder().connect(connectionInfo);) {
+		try (Connection connect = connect();) {
 			synchronized (lock) {
 				// 1.检查id是否已经存在
 				Integer id = null;
@@ -328,7 +328,7 @@ public class DataBaseProfile {
 
 	public ConnectionInfo getConnectionInfo(String user, String connectionName) {
 		StringBuilder sb = getSelectSql(user, connectionName);
-		try (Connection connect = JsqltoolBuilder.builder().connect(connectionInfo);) {
+		try (Connection connect = connect();) {
 			SqlResult execute = SqlPlus.execute(connect, sb.toString());
 			List<Record> records = execute.getRecords();
 			if (records != null && records.size() == 1) {
@@ -413,10 +413,10 @@ public class DataBaseProfile {
 	}
 
 	public boolean delete(String user, String connectionName) {
-		try (Connection connect = JsqltoolBuilder.builder().connect(connectionInfo);) {
+		try (Connection connect = connect();) {
 			StringBuilder deleteSql = getDeleteSql(user, connectionName);
 			SqlPlus.execute(connect, deleteSql.toString());
-			JdbcUtil.commit(connect);
+			commit(connect);
 			return true;
 		} catch (Exception e) {
 			throw new JsqltoolParamException(e);
@@ -467,7 +467,7 @@ public class DataBaseProfile {
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			JdbcUtil.commit(conn);
+			commit(conn);
 		}
 	}
 
@@ -479,7 +479,11 @@ public class DataBaseProfile {
 	}
 
 	private Connection connect() {
-		return JdbcUtil.connect(connectionInfo);
+		return JsqltoolBuilder.builder().connect(connectionInfo);
+	}
+
+	private void commit(Connection conn) {
+		JdbcUtil.commit(conn);
 	}
 
 }

@@ -9,10 +9,19 @@ public class SelectTableParam {
 	private String catalog;
 	private String schema;
 	private String tableName;
+	private String type; // 典型值为VIEW和TABLE
 	// 以下为分页参数
 	private Long count;
 	private Integer page;
 	private Integer pageSize; // 默认值为1000
+
+	public String getType() {
+		return type;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
 
 	public String getTableName() {
 		return tableName;

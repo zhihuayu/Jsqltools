@@ -48,7 +48,7 @@ public class PageHelper implements Cloneable {
 		long startTime = System.currentTimeMillis();
 		long result = 0L;
 		StringBuilder sb = new StringBuilder();
-		sql = StringUtils.trim(sql).toLowerCase();
+		sql = StringUtils.trim(sql);
 		sb.append("select count(*) from (");
 		sb.append(sql);
 		sb.append(" ) temp_count");

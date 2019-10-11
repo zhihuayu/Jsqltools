@@ -10,16 +10,19 @@ import org.apache.commons.lang3.StringUtils;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.param.SelectTableParam;
+import com.github.jsqltool.result.SqlResult;
+import com.github.jsqltool.result.SqlResult.Column;
 import com.github.jsqltool.sql.SqlPlus;
-import com.github.jsqltool.sql.SqlPlus.Column;
-import com.github.jsqltool.sql.SqlPlus.SqlResult;
 
-public class MySqlSelectTableHandler implements SelectTableHandler {
+public class MySqlSelectTableHandler extends DefaultSelectTableHandler implements SelectTableHandler {
 
 	@Override
 	public SqlResult selectTable(Connection connection, SelectTableParam param) throws SQLException {
 		if (param == null || !StringUtils.isNoneBlank(param.getCatalog(), param.getTableName())) {
 			throw new JsqltoolParamException("catalog和表名不能为空！");
+		}
+		if (StringUtils.equalsIgnoreCase(param.getType(), "VIEW")) {
+			return super.selectTable(connection, param);
 		}
 		long startTime = System.currentTimeMillis();
 		DatabaseMetaData metaData = connection.getMetaData();
@@ -42,7 +45,8 @@ public class MySqlSelectTableHandler implements SelectTableHandler {
 				DBType.getDBTypeByDriverClassName(metaData.getDriverName()));
 		SqlResult result = SqlPlus.execute(connection, "select * from " + param.getTableName());
 		long endTime = System.currentTimeMillis();
-		result.setMessage("执行成功，耗时：" + (endTime - startTime) + "ms");
+		if (result.getStatus() == SqlResult.success)
+			result.setMessage("执行成功，耗时：" + (endTime - startTime) + "ms");
 		return result;
 	}
 

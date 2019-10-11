@@ -13,6 +13,15 @@ public class DropTableHandlerContent implements IdropTableHandler {
 
 	LinkedList<IdropTableHandler> dropTableHandlers = new LinkedList<>();
 
+	private DropTableHandlerContent() {
+	}
+
+	public static DropTableHandlerContent builder() {
+		DropTableHandlerContent dropTableHandlerContent = new DropTableHandlerContent();
+		dropTableHandlerContent.addFirst(new DefaultDropTable());
+		return dropTableHandlerContent;
+	}
+
 	@Override
 	public UpdateResult drop(Connection connection, DropTableParam dropTableParam) throws SQLException {
 		DBType dbType = DBType.getDBTypeByDriverClassName(connection.getMetaData().getDriverName());

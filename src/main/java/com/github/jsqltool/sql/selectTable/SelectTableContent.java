@@ -7,11 +7,22 @@ import java.util.LinkedList;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.exception.NoSelectTableHandlerException;
 import com.github.jsqltool.param.SelectTableParam;
-import com.github.jsqltool.sql.SqlPlus.SqlResult;
+import com.github.jsqltool.result.SqlResult;
 
 public class SelectTableContent implements SelectTableHandler {
 
 	LinkedList<SelectTableHandler> schemas = new LinkedList<>();
+
+	private SelectTableContent() {
+	}
+
+	public static SelectTableContent builder() {
+		SelectTableContent selectTableContent = new SelectTableContent();
+		selectTableContent.addFirst(new DefaultSelectTableHandler());
+		selectTableContent.addFirst(new MySqlSelectTableHandler());
+		selectTableContent.addFirst(new OracleSelectTableHandler());
+		return selectTableContent;
+	}
 
 	@Override
 	public SqlResult selectTable(Connection connection, SelectTableParam param) throws SQLException {
