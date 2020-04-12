@@ -1,4 +1,4 @@
-package com.github.jsqltool.sql.update;
+package com.github.jsqltool.sql.insert;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -9,15 +9,13 @@ import com.github.jsqltool.param.UpdateParam;
 import com.github.jsqltool.vo.UpdateResult;
 
 /**
- * 
+ * 表插入操作的基本类 
  * @author yzh
- * @date 2019年10月11日
- * 数据更新处理器的接口
+ * @date 2019年7月6日
  */
-public interface IUpdateDataHandler {
+public interface InsertHandler {
 
-	UpdateResult update(Connection connect, List<UpdateParam> updates, Boolean force) throws SQLException;
+	UpdateResult insert(Connection connect, List<UpdateParam> updates) throws SQLException;
 
 	boolean support(DBType dbType);
-
 }

@@ -116,6 +116,7 @@ public class JdbcUtil {
 				dataSource = FACTORY_MAP.get(key);
 				if (dataSource == null) {
 					DruidDataSource druidDateSource = new DruidDataSource();
+					druidDateSource.setDefaultAutoCommit(true);
 					druidDateSource.setDriverClassName(driverClassName);
 					druidDateSource.setUrl(url);
 					druidDateSource.setUsername(userName);

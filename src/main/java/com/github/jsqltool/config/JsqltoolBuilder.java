@@ -30,30 +30,30 @@ import com.github.jsqltool.result.SqlResult;
 import com.github.jsqltool.result.TableColumnInfo;
 import com.github.jsqltool.result.TypeInfo;
 import com.github.jsqltool.sql.SqlPlus;
-import com.github.jsqltool.sql.catelog.CatelogHandlerContent;
 import com.github.jsqltool.sql.catelog.ICatelogHandler;
-import com.github.jsqltool.sql.createTableView.CreateTableViewHandlerContent;
+import com.github.jsqltool.sql.catelog.impl.CatelogHandlerContent;
 import com.github.jsqltool.sql.createTableView.IcreateTableViewHandler;
-import com.github.jsqltool.sql.delete.DeleteHandlerContent;
+import com.github.jsqltool.sql.createTableView.impl.CreateTableViewHandlerContent;
 import com.github.jsqltool.sql.delete.IdeleteHandler;
-import com.github.jsqltool.sql.dropTable.DropTableHandlerContent;
+import com.github.jsqltool.sql.delete.impl.DeleteHandlerContent;
 import com.github.jsqltool.sql.dropTable.IdropTableHandler;
+import com.github.jsqltool.sql.dropTable.impl.DropTableHandlerContent;
 import com.github.jsqltool.sql.excuteCall.ExecuteCallHandler;
 import com.github.jsqltool.sql.excuteCall.impl.ExecuteCallHandlerContent;
-import com.github.jsqltool.sql.insert.IinertHandler;
-import com.github.jsqltool.sql.insert.InsertHandlerContent;
+import com.github.jsqltool.sql.insert.InsertHandler;
+import com.github.jsqltool.sql.insert.impl.InsertHandlerContent;
 import com.github.jsqltool.sql.procedure.ProcedureHandler;
 import com.github.jsqltool.sql.procedure.impl.ProcedureHandlerContent;
 import com.github.jsqltool.sql.schema.IScheamHandler;
-import com.github.jsqltool.sql.schema.SchemaHandlerContent;
-import com.github.jsqltool.sql.selectTable.SelectTableContent;
+import com.github.jsqltool.sql.schema.impl.SchemaHandlerContent;
 import com.github.jsqltool.sql.selectTable.SelectTableHandler;
+import com.github.jsqltool.sql.selectTable.impl.SelectTableContent;
 import com.github.jsqltool.sql.table.TableHandler;
 import com.github.jsqltool.sql.table.impl.TableHandlerContent;
 import com.github.jsqltool.sql.typeHandler.TypeHandler;
-import com.github.jsqltool.sql.typeHandler.TypeHandlerContent;
+import com.github.jsqltool.sql.typeHandler.impl.TypeHandlerContent;
 import com.github.jsqltool.sql.update.IUpdateDataHandler;
-import com.github.jsqltool.sql.update.UpdateDataHandlerContent;
+import com.github.jsqltool.sql.update.impl.UpdateDataHandlerContent;
 import com.github.jsqltool.utils.JdbcUtil;
 import com.github.jsqltool.vo.Index;
 import com.github.jsqltool.vo.Primary;
@@ -359,11 +359,11 @@ final public class JsqltoolBuilder {
 		return insertHandlerContent.insert(connect, updates);
 	}
 
-	public void addFirstInsertHandler(IinertHandler handler) {
+	public void addFirstInsertHandler(InsertHandler handler) {
 		insertHandlerContent.addFirst(handler);
 	}
 
-	public void addLastInsertHandler(IinertHandler handler) {
+	public void addLastInsertHandler(InsertHandler handler) {
 		insertHandlerContent.addLast(handler);
 	}
 
