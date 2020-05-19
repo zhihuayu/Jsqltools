@@ -129,8 +129,14 @@ public class JdbcUtil {
 					if (StringUtils.containsIgnoreCase(driverClassName, "mysql"))
 						druidDateSource.addConnectionProperty("useInformationSchema", "true");
 					// 其他基本参数
+					// 1.设置错误重试次数
+					// 1.1 设置连接次数试图重试的次数，这里设置为3
 					druidDateSource.setConnectionErrorRetryAttempts(3);
-					druidDateSource.setAsyncCloseConnectionEnable(false);
+					// 1.2 设置重试次数过后，是否不再重试，这里设置为true，默认为false，注意：该值必须设置否则setConnectionErrorRetryAttempts设置无效
+					druidDateSource.setBreakAfterAcquireFailure(true);
+					// 1.3 设置重试错误之间的间隔，默认为500ms，如果该值<=0，那么连接错误之后也会一直重试
+					druidDateSource.setTimeBetweenConnectErrorMillis(500);
+					druidDateSource.setAsyncCloseConnectionEnable(true);
 //					druidDateSource.setKeepAlive(true);
 //					druidDateSource.setKeepAliveBetweenTimeMillis(keepAliveBetweenTimeMillis);
 					druidDateSource.setAsyncInit(true);
@@ -281,7 +287,7 @@ public class JdbcUtil {
 	 * 获取table的名称（全名）：如：databaseName.tableName
 	 * 
 	 * @author yzh
-	 * @throws SQLException 
+	 * @throws SQLException
 	 * @date 2019年6月28日
 	 */
 	public static String getTableNameInfo(Connection connection, String catalog, String schema, String tableName)
@@ -342,9 +348,9 @@ public class JdbcUtil {
 
 	/**
 	 * 
-	* @author yzh
-	* @date 2019年7月11日
-	* @Description: 获取数据库支持的类型，可能会从缓存中拿
+	 * @author yzh
+	 * @date 2019年7月11日
+	 * @Description: 获取数据库支持的类型，可能会从缓存中拿
 	 */
 	public static Set<TypeInfo> getTypeInfo(Connection connection) throws SQLException {
 		DBType type = DBType.getDBTypeByDriverClassName(connection.getMetaData().getDriverName());
@@ -361,9 +367,9 @@ public class JdbcUtil {
 	}
 
 	/**
-	* @author yzh
-	* @date 2019年7月11日
-	* @Description: 获取索引信息
+	 * @author yzh
+	 * @date 2019年7月11日
+	 * @Description: 获取索引信息
 	 */
 	public static List<Index> getIndexInfo(Connection connect, IndexParam param) throws SQLException {
 		DatabaseMetaData metaData = connect.getMetaData();
@@ -401,11 +407,11 @@ public class JdbcUtil {
 
 	/**
 	 * 
-	* @author yzh
-	* @date 2019年7月12日
-	* @Description: 
-	*  @param 根据数据类型来获取诸如：catalog,shema和表的名称
-	 * @throws SQLException 
+	 * @author yzh
+	 * @date 2019年7月12日
+	 * @Description:
+	 * @param 根据数据类型来获取诸如：catalog,shema和表的名称
+	 * @throws SQLException
 	 */
 	public static String covertName(Connection connect, String name) throws SQLException {
 		if (StringUtils.isBlank(name))
@@ -424,9 +430,9 @@ public class JdbcUtil {
 
 	/**
 	 * 
-	* @author yzh
-	* @date 2019年7月11日
-	* @Description: 获取主键信息
+	 * @author yzh
+	 * @date 2019年7月11日
+	 * @Description: 获取主键信息
 	 */
 	public static Primary getPrimaryInfo(Connection connect, IndexParam param) throws SQLException {
 		DatabaseMetaData metaData = connect.getMetaData();
@@ -440,9 +446,9 @@ public class JdbcUtil {
 
 	/**
 	 * 
-	* @author yzh
-	* @date 2019年8月10日
-	* @Description: 获取table的简要信息
+	 * @author yzh
+	 * @date 2019年8月10日
+	 * @Description: 获取table的简要信息
 	 */
 	public static List<SimpleTableInfo> listTableInfo(Connection connection, DBObjectParam param) throws SQLException {
 		if (StringUtils.isBlank(param.getType())) {
@@ -490,10 +496,10 @@ public class JdbcUtil {
 
 	/**
 	 * 
-	* @author yzh
-	* @date 2019年7月11日
-	* @Description: 每次都会重新获取新的TypeInfo
-	*  @param connection
+	 * @author yzh
+	 * @date 2019年7月11日
+	 * @Description: 每次都会重新获取新的TypeInfo
+	 * @param connection
 	 */
 	public static Set<TypeInfo> newTypeInfo(Connection connection) throws SQLException {
 		try (ResultSet resultSet = connection.getMetaData().getTypeInfo();) {
@@ -560,9 +566,9 @@ public class JdbcUtil {
 
 	/**
 	 * 
-	* @author yzh
-	* @date 2019年8月11日
-	* @Description: 获取存储过程和存储函数
+	 * @author yzh
+	 * @date 2019年8月11日
+	 * @Description: 获取存储过程和存储函数
 	 */
 	public static List<FunctionInfo> getProcedure(Connection connection, ProcedureInfoParam param) throws SQLException {
 		String catalog = covertName(connection, param.getCatalog());
@@ -607,10 +613,10 @@ public class JdbcUtil {
 	}
 
 	/**
-	* @author yzh
-	* @date 2019年7月11日
-	* @Description: 获取表格的列信息
-	*  @throws SQLException    参数
+	 * @author yzh
+	 * @date 2019年7月11日
+	 * @Description: 获取表格的列信息
+	 * @throws SQLException 参数
 	 */
 	public static List<ColumnInfo> getTableColumnInfo(Connection conn, TableColumnsParam param) throws SQLException {
 		try (ResultSet rs = conn.getMetaData().getColumns(param.getCatalog(), param.getSchema(), param.getTableName(),
