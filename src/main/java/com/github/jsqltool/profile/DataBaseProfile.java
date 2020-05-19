@@ -10,7 +10,6 @@ import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.result.SqlResult;
@@ -479,7 +478,7 @@ public class DataBaseProfile {
 	}
 
 	private Connection connect() {
-		return JsqltoolBuilder.builder().connect(connectionInfo);
+		return JdbcUtil.connect(connectionInfo);
 	}
 
 	private void commit(Connection conn) {
