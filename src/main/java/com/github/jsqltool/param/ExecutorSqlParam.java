@@ -11,10 +11,19 @@ public class ExecutorSqlParam {
 	private String schema;
 	private String sql;
 	// 以下为分页参数
+	private Boolean noPage; // 是否不分页，默认进行分页
 	private Long count;
 	private Boolean isCount; // 是否查询总数
 	private Integer page;
 	private Integer pageSize; // 默认值为1000
+
+	public Boolean getNoPage() {
+		return noPage;
+	}
+
+	public void setNoPage(Boolean noPage) {
+		this.noPage = noPage;
+	}
 
 	public Integer getPage() {
 		return page;

@@ -204,14 +204,17 @@ final public class JsqltoolBuilder {
 	public SqlResult executorSql(Connection connect, ExecutorSqlParam param) throws SQLException {
 		DatabaseMetaData metaData = connect.getMetaData();
 		if (StringUtils.containsIgnoreCase(metaData.getDriverName(), "mysql")) {
+
 			if (StringUtils.isBlank(param.getCatalog())) {
 				logger.warn("mysql数据库必须选择一个databse来执行");
-				throw new SqlExecuteException("mysql数据库必须选择一个databse来执行");
+//				throw new SqlExecuteException("mysql数据库必须选择一个databse来执行");
+			} else {
+				SqlPlus.execute(connect, "use " + param.getCatalog());
 			}
-			SqlPlus.execute(connect, "use " + param.getCatalog());
 		}
-		SqlPlus.setPage(param.getPage(), param.getPageSize(), param.getCount(), param.getIsCount(),
-				DBType.getDBTypeByDriverClassName(metaData.getDriverName()));
+		if (param.getNoPage() == null || !param.getNoPage())
+			SqlPlus.setPage(param.getPage(), param.getPageSize(), param.getCount(), param.getIsCount(),
+					DBType.getDBTypeByDriverClassName(metaData.getDriverName()));
 		return SqlPlus.execute(connect, param.getSql());
 	}
 
