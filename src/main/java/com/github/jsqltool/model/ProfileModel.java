@@ -42,7 +42,12 @@ public class ProfileModel implements IModel {
 
 	@Override
 	public boolean delete(String user, String connectionName) {
-		return fileProfile.delete(user,connectionName);
+		return fileProfile.delete(user, connectionName);
+	}
+
+	@Override
+	public List<ConnectionInfo> listConnectionInfo(String user) {
+		return fileProfile.listConnectionInfo(user);
 	}
 
 }

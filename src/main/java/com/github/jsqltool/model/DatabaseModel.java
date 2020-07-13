@@ -48,4 +48,13 @@ public class DatabaseModel implements IModel {
 		return profile.delete(user, connectionName);
 	}
 
+	@Override
+	public List<ConnectionInfo> listConnectionInfo(String user) {
+		try {
+			return profile.listConnectionInfo(user);
+		} catch (SQLException e) {
+			throw new JsqltoolParamException(e);
+		}
+	}
+
 }

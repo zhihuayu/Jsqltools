@@ -14,6 +14,8 @@ public interface IModel {
 	 */
 	List<String> listConnection(String user);
 
+	List<ConnectionInfo> listConnectionInfo(String user);
+
 	/**
 	* @author yzh
 	* @date 2019年10月10日

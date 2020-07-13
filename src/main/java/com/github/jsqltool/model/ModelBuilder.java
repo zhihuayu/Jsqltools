@@ -24,10 +24,10 @@ public class ModelBuilder {
 		String customerModel = prop.getProperty(customerClassPropKey);
 		if (StringUtils.isBlank(customerModel)) {
 			// 内置模式
-			return builderInternal(prop);
+			return CachedModel.builder(builderInternal(prop));
 		} else {
 			// 自定义模式
-			return builderCustomer(customerModel, prop);
+			return CachedModel.builder(builderCustomer(customerModel, prop));
 		}
 	}
 

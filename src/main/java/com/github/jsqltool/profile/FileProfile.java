@@ -55,6 +55,19 @@ public class FileProfile {
 		return names;
 	}
 
+	public List<ConnectionInfo> listConnectionInfo(String user) {
+		List<String> names = listProfilesName(user);
+		List<ConnectionInfo> result = new ArrayList<>();
+		for (String name : names) {
+			try {
+				result.add(loadConnectionInfo(user, name));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return result;
+	}
+
 	private File getRootPathFile(String user) {
 		File userHomeRootFile = getUserHomeRootFile(user);
 		if (userHomeRootFile != null)

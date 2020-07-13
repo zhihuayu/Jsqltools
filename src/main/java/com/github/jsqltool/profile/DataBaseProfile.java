@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
@@ -67,25 +68,24 @@ public class DataBaseProfile {
 	}
 
 	public List<String> listConnection(String user) throws SQLException {
+		List<String> result = new ArrayList<>();
+		List<ConnectionInfo> listConnection = listConnectionInfo(user);
+		if (listConnection != null) {
+			for (ConnectionInfo info : listConnection)
+				result.add(info.getName());
+		}
+		return result;
+	}
+
+	public List<ConnectionInfo> listConnectionInfo(String user) throws SQLException {
 		try (Connection connect = connect();) {
-			String sql = "select f_name from " + tableName + " where ";
-			if (StringUtils.isBlank(user)) {
-				sql += "f_user = '' or f_user = ' ' ";
-			} else {
-				sql += "f_user =" + user;
-			}
+			String sql = getSelectSqlByUser(user).toString();
 			SqlResult execute = SqlPlus.execute(connect, sql);
 			List<Record> records = execute.getRecords();
-			List<String> result = new ArrayList<>();
+			List<ConnectionInfo> result = new ArrayList<>();
 			if (records != null && !records.isEmpty()) {
 				for (Record r : records) {
-					List<Object> values = r.getValues();
-					if (values != null && values.size() == 1) {
-						Object v = values.get(0);
-						if (v != null && v instanceof String && StringUtils.isNotBlank((String) v)) {
-							result.add(StringUtils.trim((String) v));
-						}
-					}
+					result.add(convertRecodeToConnectionInfo(execute.getColumns(), r));
 				}
 			}
 			return result;
@@ -183,6 +183,11 @@ public class DataBaseProfile {
 			return 1;
 		if (object instanceof Number) {
 			return ((Number) object).intValue();
+		} else {
+			try {
+				return Integer.parseInt(object.toString());
+			} catch (Exception e) {
+			}
 		}
 		return 1;
 	}
@@ -318,6 +323,12 @@ public class DataBaseProfile {
 				Object object = records.getValues().get(0);
 				if (object instanceof Number) {
 					id = ((Number) object).intValue();
+				} else if (object != null) {
+					try {
+						id = Integer.parseInt(object.toString());
+					} catch (Exception e) {
+						// 忽略搓搓
+					}
 				}
 			}
 
@@ -331,62 +342,7 @@ public class DataBaseProfile {
 			SqlResult execute = SqlPlus.execute(connect, sb.toString());
 			List<Record> records = execute.getRecords();
 			if (records != null && records.size() == 1) {
-				ConnectionInfo info = new ConnectionInfo();
-				Record record = records.get(0);
-				List<Column> columns = execute.getColumns();
-				List<Object> values = record.getValues();
-				for (int i = 0; i < columns.size(); i++) {
-					Column c = columns.get(i);
-					// PROP
-					if (StringUtils.equalsIgnoreCase("PROP", c.getColumnName())) {
-						Object v = values.get(i);
-						if (v != null && v instanceof CharSequence) {
-							String cs = v.toString();
-							info.setProp(convertStringToProp(null, cs));
-						}
-					}
-					// F_NAME
-					if (StringUtils.equalsIgnoreCase("F_NAME", c.getColumnName())) {
-						Object v = values.get(i);
-						if (v == null) {
-							throw new JsqltoolParamException("获取的连接名不能为空");
-						}
-						info.setName(v.toString());
-					}
-					// driver_class_name
-					if (StringUtils.equalsIgnoreCase("driver_class_name", c.getColumnName())) {
-						Object v = values.get(i);
-						if (v == null) {
-							throw new JsqltoolParamException("获取的driver_class_name不能为空");
-						}
-						info.setDriverClassName(v.toString());
-					}
-					// url
-					if (StringUtils.equalsIgnoreCase("f_url", c.getColumnName())) {
-						Object v = values.get(i);
-						if (v == null) {
-							throw new JsqltoolParamException("获取的f_url不能为空");
-						}
-						info.setUrl(v.toString());
-					}
-					// user_name
-					if (StringUtils.equalsIgnoreCase("user_name", c.getColumnName())) {
-						Object v = values.get(i);
-						if (v == null) {
-							throw new JsqltoolParamException("获取的user_name不能为空");
-						}
-						info.setUserName(v.toString());
-					}
-					// pwd
-					if (StringUtils.equalsIgnoreCase("pwd", c.getColumnName())) {
-						Object v = values.get(i);
-						if (v == null) {
-							throw new JsqltoolParamException("获取的pwd不能为空");
-						}
-						info.setPassword(v.toString());
-					}
-				}
-				return info;
+				return convertRecodeToConnectionInfo(execute.getColumns(), records.get(0));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -395,7 +351,74 @@ public class DataBaseProfile {
 		return null;
 	}
 
+	private ConnectionInfo convertRecodeToConnectionInfo(List<Column> columns, Record record) {
+		ConnectionInfo info = new ConnectionInfo();
+		List<Object> values = record.getValues();
+		for (int i = 0; i < columns.size(); i++) {
+			Column c = columns.get(i);
+			// PROP
+			if (StringUtils.equalsIgnoreCase("PROP", c.getColumnName())) {
+				Object v = values.get(i);
+				if (v != null && v instanceof CharSequence) {
+					String cs = v.toString();
+					info.setProp(convertStringToProp(null, cs));
+				}
+			}
+			// F_NAME
+			if (StringUtils.equalsIgnoreCase("F_NAME", c.getColumnName())) {
+				Object v = values.get(i);
+				if (v == null) {
+					throw new JsqltoolParamException("获取的连接名不能为空");
+				}
+				info.setName(v.toString());
+			}
+			// driver_class_name
+			if (StringUtils.equalsIgnoreCase("driver_class_name", c.getColumnName())) {
+				Object v = values.get(i);
+				if (v == null) {
+					throw new JsqltoolParamException("获取的driver_class_name不能为空");
+				}
+				info.setDriverClassName(v.toString());
+			}
+			// url
+			if (StringUtils.equalsIgnoreCase("f_url", c.getColumnName())) {
+				Object v = values.get(i);
+				if (v == null) {
+					throw new JsqltoolParamException("获取的f_url不能为空");
+				}
+				info.setUrl(v.toString());
+			}
+			// user_name
+			if (StringUtils.equalsIgnoreCase("user_name", c.getColumnName())) {
+				Object v = values.get(i);
+				if (v == null) {
+					throw new JsqltoolParamException("获取的user_name不能为空");
+				}
+				info.setUserName(v.toString());
+			}
+			// pwd
+			if (StringUtils.equalsIgnoreCase("pwd", c.getColumnName())) {
+				Object v = values.get(i);
+				if (v == null) {
+					throw new JsqltoolParamException("获取的pwd不能为空");
+				}
+				info.setPassword(v.toString());
+			}
+		}
+		return info;
+	}
+
 	private StringBuilder getSelectSql(String user, String connectionName) {
+		StringBuilder sb = getSelectSqlByUser(user);
+		sb.append(" and f_name = ");
+		if (StringUtils.isBlank(connectionName)) {
+			throw new JsqltoolParamException("连接名不能为空！");
+		}
+		sb.append("'" + StringUtils.trim(connectionName) + "'");
+		return sb;
+	}
+
+	private StringBuilder getSelectSqlByUser(String user) {
 		StringBuilder sb = new StringBuilder("select * from " + tableName);
 		sb.append(" where  ");
 		if (StringUtils.isBlank(user)) {
@@ -403,11 +426,6 @@ public class DataBaseProfile {
 		} else {
 			sb.append("f_user ='" + StringUtils.trim(user) + "'");
 		}
-		sb.append(" and f_name = ");
-		if (StringUtils.isBlank(connectionName)) {
-			throw new JsqltoolParamException("连接名不能为空！");
-		}
-		sb.append("'" + StringUtils.trim(connectionName) + "'");
 		return sb;
 	}
 
@@ -471,10 +489,12 @@ public class DataBaseProfile {
 	}
 
 	private String getCreateTableSql() {
+		String randStr = new Date().getTime() + "";
 		return "create table " + tableName + " (id int primary key ,\r\n" + "  f_user varchar(30) not null ,\r\n"
 				+ "  f_name varchar(30) not null,\r\n" + "  driver_class_name varchar(60) not null ,\r\n"
 				+ "  f_url varchar(128) not null,\r\n" + "  user_name varchar(30),\r\n" + "  pwd varchar(60),\r\n"
-				+ " prop varchar(512) default NULL,\r\n" + " CONSTRAINT index_unique unique(f_user,f_name)\r\n" + "  )";
+				+ " prop varchar(512) default NULL,\r\n" + " CONSTRAINT index_unique_" + randStr
+				+ " unique(f_user,f_name)\r\n" + "  )";
 	}
 
 	private Connection connect() {

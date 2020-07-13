@@ -2,6 +2,7 @@ package com.github.jsqltool.utils;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
@@ -25,6 +26,7 @@ import com.github.jsqltool.config.JsqltoolBuilder;
 import com.github.jsqltool.entity.ConnectionInfo;
 import com.github.jsqltool.enums.DBType;
 import com.github.jsqltool.exception.CannotParseUrlException;
+import com.github.jsqltool.exception.DatasourceConnectionException;
 import com.github.jsqltool.exception.DatasourceNullException;
 import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.SqlExecuteException;
@@ -61,12 +63,10 @@ public class JdbcUtil {
 		try {
 			Connection conn = connect(info.getDriverClassName(), info.getUrl(), info.getUserName(), info.getPassword(),
 					info.getProp());
-			// conn.setAutoCommit(true);
-			// this.conn.setTransactionIsolation(isolationLivels[dbConnection.getIsolationLevel()]);
 			conn.setReadOnly(false);
 			return conn;
 		} catch (Throwable ex) {
-			throw new RuntimeException(ex);
+			throw new DatasourceConnectionException(ex);
 		}
 	}
 
@@ -90,6 +90,11 @@ public class JdbcUtil {
 			} catch (java.sql.SQLTimeoutException e) {
 				th = e;
 				break;
+			} catch (SQLException e) {
+				th = e;
+				removeDataSource(url, userName);
+				d = null;
+				break;
 			} catch (Exception e) {
 				if (d != null) {
 					d.close();
@@ -101,6 +106,14 @@ public class JdbcUtil {
 		if (d != null)
 			d.close();
 		throw new DataSourceNotAvailableException(th);
+	}
+
+	public static void removeDataSource(String url, String userName) {
+		String key = getDataSourceKey(url, userName);
+		if (StringUtils.isBlank(key)) {
+			throw new CannotParseUrlException("can not parse url param");
+		}
+		FACTORY_MAP.remove(key);
 	}
 
 	public static DataSource getDataSource(String driverClassName, String url, String userName, String pwd,
@@ -132,7 +145,8 @@ public class JdbcUtil {
 					// 1.设置错误重试次数
 					// 1.1 设置连接次数试图重试的次数，这里设置为3
 					druidDateSource.setConnectionErrorRetryAttempts(3);
-					// 1.2 设置重试次数过后，是否不再重试，这里设置为true，默认为false，注意：该值必须设置否则setConnectionErrorRetryAttempts设置无效
+					// 1.2
+					// 设置重试次数过后，是否不再重试，这里设置为true，默认为false，注意：该值必须设置否则setConnectionErrorRetryAttempts设置无效
 					druidDateSource.setBreakAfterAcquireFailure(true);
 					// 1.3 设置重试错误之间的间隔，默认为500ms，如果该值<=0，那么连接错误之后也会一直重试
 					druidDateSource.setTimeBetweenConnectErrorMillis(500);
@@ -160,12 +174,39 @@ public class JdbcUtil {
 					 * druidDateSource.setRemoveAbandonedTimeout(1800); // 1800秒，也就是30分钟
 					 * druidDateSource.setLogAbandoned(true); // 关闭abanded连接时输出错误日志
 					 */
-					FACTORY_MAP.put(key, druidDateSource);
-					dataSource = druidDateSource;
+					// 创建数据源的时候直接进行连接测试
+					try {
+					  testConnection(driverClassName, url, userName, pwd);
+					}catch (Exception e) {
+						String message = String.format("url=%s,userName=%s,pwd=%s,msg=%s", url, userName, pwd,e.getMessage());
+						throw new DatasourceConnectionException(message,e);
+					}
+					// 再次使用连接池的方式进行测试
+					try (Connection connect = druidDateSource.getConnection();) {
+						FACTORY_MAP.put(key, druidDateSource);
+						dataSource = druidDateSource;
+					} catch (Exception e) {
+						String message = String.format("url=%s,userName=%s,pwd=%s,msg=%s", url, userName, pwd,e.getMessage());
+						throw new DatasourceConnectionException(message, e);
+					}
 				}
 			}
 		}
 		return dataSource;
+	}
+
+	/**
+	 *  测试连接是否成功
+	 */
+	private static void testConnection(String driverClassName, String url, String userName, String pwd) {
+		try {
+			Class.forName(driverClassName);
+			try (Connection connection = DriverManager.getConnection(url, userName, pwd);) {
+				// 仅仅用于测试连接是否成功
+			}
+		} catch (ClassNotFoundException | SQLException e1) {
+			throw new DatasourceConnectionException(e1);
+		}
 	}
 
 	private static void addConnectionProperty(DruidDataSource createDateSource, Properties prop) {
