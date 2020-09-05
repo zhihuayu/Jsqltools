@@ -1,4 +1,4 @@
-package com.github.jsqltool.sql.typeHandler.impl;
+package com.github.jsqltool.sql.type.impl;
 
 import java.sql.Date;
 import java.sql.ResultSet;
@@ -11,13 +11,13 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.github.jsqltool.enums.JdbcType;
 import com.github.jsqltool.exception.JsqltoolParamException;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 
 public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 
-	private final static String defaultDateTimePattern = "yyyy-MM-dd HH:mm:ss";
-	private final static String defaultDatePattern = "yyyy-MM-dd";
-	private final static String defaultTimePattern = "HH:mm:ss";
+	private static final String DEFAULT_DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+	private static final String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
+	private static final String DEFAULT_TIME_PATTERN = "HH:mm:ss";
 
 	@Override
 	public String handler(ResultSet resultSet, int index, JdbcType type) throws SQLException {
@@ -28,7 +28,7 @@ public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 				return null;
 			}
 			java.util.Date d = new java.util.Date(time.getTime());
-			SimpleDateFormat format = new SimpleDateFormat(defaultDateTimePattern);
+			SimpleDateFormat format = new SimpleDateFormat(DEFAULT_DATETIME_PATTERN);
 			return format.format(d);
 		}
 
@@ -38,7 +38,7 @@ public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 				return null;
 			}
 			java.util.Date d = new java.util.Date(time.getTime());
-			SimpleDateFormat format = new SimpleDateFormat(defaultDatePattern);
+			SimpleDateFormat format = new SimpleDateFormat(DEFAULT_DATE_PATTERN);
 			return format.format(d);
 		}
 
@@ -48,7 +48,7 @@ public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 				return null;
 			}
 			java.util.Date d = new java.util.Date(time.getTime());
-			SimpleDateFormat format = new SimpleDateFormat(defaultTimePattern);
+			SimpleDateFormat format = new SimpleDateFormat(DEFAULT_TIME_PATTERN);
 			return format.format(d);
 		}
 		return null;
@@ -56,12 +56,7 @@ public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 
 	@Override
 	public boolean support(JdbcType type) {
-		if (type == null) {
-			return false;
-		}
-		if (type == JdbcType.TIME || type == JdbcType.TIMESTAMP || type == JdbcType.DATE)
-			return true;
-		return false;
+		return type == JdbcType.TIME || type == JdbcType.TIMESTAMP || type == JdbcType.DATE;
 	}
 
 	@Override
@@ -76,19 +71,19 @@ public class DateTypeHandler implements TypeHandler<String, java.util.Date> {
 				String str = StringUtils.trim((String) obj);
 				// 年月日模式
 				if (str.length() == 10) {
-					SimpleDateFormat format = new SimpleDateFormat(defaultDatePattern);
+					SimpleDateFormat format = new SimpleDateFormat(DEFAULT_DATE_PATTERN);
 					java.util.Date parse = format.parse(str);
 					return new Date(parse.getTime());
 				}
 				// 时分秒模式
 				if (str.length() == 8) {
-					SimpleDateFormat format = new SimpleDateFormat(defaultTimePattern);
+					SimpleDateFormat format = new SimpleDateFormat(DEFAULT_TIME_PATTERN);
 					java.util.Date parse = format.parse(str);
 					return new Time(parse.getTime());
 				}
 				// 年月日时分秒模式
 				if (str.length() == 19) {
-					SimpleDateFormat format = new SimpleDateFormat(defaultDateTimePattern);
+					SimpleDateFormat format = new SimpleDateFormat(DEFAULT_DATETIME_PATTERN);
 					java.util.Date parse = format.parse(str);
 					return new Timestamp(parse.getTime());
 				}

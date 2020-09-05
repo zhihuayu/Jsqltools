@@ -12,7 +12,7 @@ import com.github.jsqltool.exception.JsqltoolParamException;
 import com.github.jsqltool.exception.UpdateDataException;
 import com.github.jsqltool.param.ChangeValue;
 import com.github.jsqltool.param.UpdateParam;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 import com.github.jsqltool.sql.update.AbstractUpdateDataHandler;
 import com.github.jsqltool.vo.IndexColumn;
 import com.github.jsqltool.vo.Primary;

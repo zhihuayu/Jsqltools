@@ -11,7 +11,7 @@ import com.github.jsqltool.exception.UpdateDataException;
 import com.github.jsqltool.param.ChangeValue;
 import com.github.jsqltool.param.UpdateParam;
 import com.github.jsqltool.sql.delete.AbstractDeleteHandler;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 import com.github.jsqltool.vo.IndexColumn;
 import com.github.jsqltool.vo.Primary;
 import com.github.jsqltool.vo.UpdateResult;

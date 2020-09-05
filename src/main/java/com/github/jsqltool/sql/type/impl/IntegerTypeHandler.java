@@ -1,4 +1,4 @@
-package com.github.jsqltool.sql.typeHandler.impl;
+package com.github.jsqltool.sql.type.impl;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,7 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.github.jsqltool.enums.JdbcType;
 import com.github.jsqltool.exception.JsqltoolParamException;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 
 public class IntegerTypeHandler implements TypeHandler<Integer, Integer> {
 
@@ -21,13 +21,7 @@ public class IntegerTypeHandler implements TypeHandler<Integer, Integer> {
 
 	@Override
 	public boolean support(JdbcType type) {
-		if (type == null) {
-			return false;
-		}
-		if (type == JdbcType.INTEGER || type == JdbcType.BIT || type == JdbcType.TINYINT) {
-			return true;
-		}
-		return false;
+		return type == JdbcType.INTEGER || type == JdbcType.BIT || type == JdbcType.TINYINT;
 	}
 
 	@Override
@@ -39,10 +33,8 @@ public class IntegerTypeHandler implements TypeHandler<Integer, Integer> {
 			if (obj instanceof Number) {
 				return ((Number) obj).intValue();
 			}
-			if (obj instanceof CharSequence) {
-				if (StringUtils.isBlank((CharSequence) obj)) {
-					return null;
-				}
+			if (obj instanceof CharSequence && StringUtils.isBlank((CharSequence) obj)) {
+				return null;
 			}
 			return Integer.valueOf(obj.toString());
 		} catch (Exception e) {

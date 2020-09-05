@@ -48,22 +48,12 @@ import com.github.jsqltool.result.SqlResult;
 import com.github.jsqltool.result.SqlResult.Column;
 import com.github.jsqltool.result.SqlResult.Record;
 import com.github.jsqltool.sql.page.PageHelper;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 import com.github.jsqltool.utils.JdbcUtil;
 import com.github.jsqltool.vo.UpdateResult;
 
 public class SqlPlus {
 
-	private static final int CREATE = 1;
-	private static final int INSERT = 2;
-	private static final int UPDATE = 3;
-	private static final int DELETE = 4;
-	private static final int SELECT = 5;
-	private static final int ALTER = 6;
-	private static final int DROP = 7;
-	private static final int SHOW = 8;
-	private static final int UNKNOWN = 99;
-	private static final int BLOCK = 11; // 语句块
 	private static final Logger logger = LoggerFactory.getLogger(SqlPlus.class);
 	private static final ThreadLocal<PageHelper> pageHelper = new ThreadLocal<>();
 	private static final ExecutorService executorCountSqlService = Executors
@@ -122,19 +112,23 @@ public class SqlPlus {
 		for (Entry<String, List<SqlParam>> entry : entrySet) {
 			List<SqlParam> value = entry.getValue();
 			for (SqlParam sql : value) {
-				PreparedStatement prepareStatement = connect.prepareStatement(sql.getSql());
-				Object[] param = sql.getParam();
-				for (int i = 0; i < param.length; i++) {
-					try {
-						Object obj = processObj(connect, dbType, param[i]);
-						prepareStatement.setObject(i + 1, obj);
-					} catch (Exception e) {
-						throw new JsqltoolParamException(param[i] + ":" + e.getMessage(), e);
+				String rsql = sql.getSql();
+				SqlType sqlType = getSqlType(rsql);
+				rsql = sqlFilter(rsql, sqlType);
+				try (PreparedStatement prepareStatement = connect.prepareStatement(rsql);) {
+					Object[] param = sql.getParam();
+					for (int i = 0; i < param.length; i++) {
+						try {
+							Object obj = processObj(connect, dbType, param[i]);
+							prepareStatement.setObject(i + 1, obj);
+						} catch (Exception e) {
+							throw new JsqltoolParamException(param[i] + ":" + e.getMessage(), e);
+						}
 					}
+					int effectRows = prepareStatement.executeUpdate();
+					effectRowsResult += effectRows;
+					logger.info("{}影响的函数：{}", rsql, effectRows);
 				}
-				int effectRows = prepareStatement.executeUpdate();
-				effectRowsResult += effectRows;
-				System.out.println(sql.getSql() + "影响的行数：" + effectRows);
 			}
 			JdbcUtil.commit(connect);
 		}
@@ -182,6 +176,7 @@ public class SqlPlus {
 
 	@SuppressWarnings("rawtypes")
 	public static String executeCall(Connection connection, ProcedureParam procedure) throws SQLException {
+		sqlFilter(null, SqlType.CALLABLE);
 		StringBuilder result = new StringBuilder();
 		if (procedure != null && StringUtils.isNotBlank(procedure.getProcedureName())) {
 			long startTime = System.currentTimeMillis();
@@ -305,16 +300,16 @@ public class SqlPlus {
 			}
 			SqlParser sqlParser = null;
 			statement = connection.createStatement();
-
 			while ((sqlParser = getSqlParser(bufferedReader)) != null) {
-				int type = sqlParser.getSqlType();
+				SqlType type = sqlParser.getSqlType();
 				String sql = sqlParser.getSql();
 				logger.info("type: {}, sql: {}", type, sql);
 				try {
-					if (type == SELECT || type == SHOW) {
+					sql = sqlFilter(sql, type);// 使用sql过滤器
+					if (type == SqlType.SELECT || type == SqlType.SHOW) {
 						return makeSqlResult(selectAndPage(connection, sql, type), result);
 					}
-					if (type == BLOCK) {
+					if (type == SqlType.BLOCK) {
 						JsqltoolBuilder builder = JsqltoolBuilder.builder();
 						String executeCall = builder.executeCall(connection, sql);
 						result.append("\n");
@@ -370,7 +365,7 @@ public class SqlPlus {
 
 	private static class SqlParser {
 		private String sql;
-		private int sqlType;
+		private SqlType sqlType;
 
 		public String getSql() {
 			return sql;
@@ -380,13 +375,14 @@ public class SqlPlus {
 			this.sql = sql;
 		}
 
-		public int getSqlType() {
+		public SqlType getSqlType() {
 			return sqlType;
 		}
 
-		public void setSqlType(int sqlType) {
+		public void setSqlType(SqlType sqlType) {
 			this.sqlType = sqlType;
 		}
+
 	}
 
 	public static SqlParser getSqlParser(BufferedReader bufferedReader) throws IOException {
@@ -406,7 +402,7 @@ public class SqlPlus {
 			}
 			if (isBlock) {
 				if (line.contains("$end_block") && line.endsWith(";")) {
-					sql.setSqlType(BLOCK);
+					sql.setSqlType(SqlType.BLOCK);
 					break;
 				}
 				buffer.append(line);
@@ -424,44 +420,10 @@ public class SqlPlus {
 		}
 		if (buffer.length() > 0) {
 			sql.setSql(buffer.toString());
-			if (sql.getSqlType() <= 0)
+			if (sql.getSqlType() == null)
 				sql.setSqlType(getSqlType(sql.getSql()));
 		}
 		return (buffer.length() > 0 ? sql : null);
-	}
-
-	private static String getSql(BufferedReader bufferedReader) throws IOException {
-		String line = null;
-		StringBuilder buffer = new StringBuilder();
-		boolean isBlock = false;
-		while ((line = bufferedReader.readLine()) != null) {
-			line = line.trim();
-			if (line.length() < 1 || line.startsWith("--")) {
-				continue;
-			}
-			// 查看： $begin_block; 和 $end_block;包起来的程序块
-			if (!isBlock && buffer.length() == 0 && line.contains("$begin_block") && line.endsWith(";")) {
-				isBlock = true;
-			}
-			if (isBlock) {
-				if (line.contains("$end_block") && line.endsWith(";")) {
-					break;
-				}
-				buffer.append(line);
-				buffer.append(" ");
-			} else {
-				if (line.endsWith(";")) {
-					buffer.append(line.substring(0, line.length() - 1));
-					buffer.append(" ");
-					break;
-				} else {
-					buffer.append(line);
-					buffer.append(" ");
-				}
-			}
-
-		}
-		return (buffer.length() > 0 ? buffer.toString() : null);
 	}
 
 	/**
@@ -471,7 +433,7 @@ public class SqlPlus {
 	* @date 2019年7月27日
 	* @Description: 执行select语句并进行分页
 	 */
-	public static SqlResult selectAndPage(Connection connection, String selectSql, int sqlType)
+	public static SqlResult selectAndPage(Connection connection, String selectSql, SqlType sqlType)
 			throws SQLException, CloneNotSupportedException {
 		SqlResult sqlResult = null;
 		String sourceSql = selectSql;
@@ -479,7 +441,7 @@ public class SqlPlus {
 		PageHelper page = null;
 		long startTime = System.currentTimeMillis();
 		Future<Long> count = null;
-		if (sqlType == SELECT) {
+		if (sqlType == SqlType.SELECT) {
 			page = pageHelper.get();
 			if (page != null) {
 				count = executorCountSqlService.submit(new CountTask(page, selectSql, connection));
@@ -584,6 +546,10 @@ public class SqlPlus {
 		return columns;
 	}
 
+	private static String sqlFilter(String sql, SqlType sqlType) {
+		return JsqltoolBuilder.builder().getSqlFilter().sqlFilter(sql, sqlType);
+	}
+
 	@SuppressWarnings("rawtypes")
 	private static List<Record> getRecords(ResultSet resultSet) throws SQLException {
 		List<Record> records = new ArrayList<Record>();
@@ -608,7 +574,7 @@ public class SqlPlus {
 		return records;
 	}
 
-	public static int getSqlType(String sql) {
+	public static SqlType getSqlType(String sql) {
 		int i = 0;
 		int length = sql.length();
 
@@ -622,29 +588,29 @@ public class SqlPlus {
 		}
 
 		if (j <= i) {
-			return UNKNOWN;
+			return SqlType.UNKNOWN;
 		}
 
 		String word = sql.substring(i, j).toLowerCase();
 
 		if (word.equals("create")) {
-			return CREATE;
+			return SqlType.CREATE;
 		} else if (word.equals("insert")) {
-			return INSERT;
+			return SqlType.INSERT;
 		} else if (word.equals("update")) {
-			return UPDATE;
+			return SqlType.UPDATE;
 		} else if (word.equals("delete")) {
-			return DELETE;
+			return SqlType.DELETE;
 		} else if (word.equals("select")) {
-			return SELECT;
+			return SqlType.SELECT;
 		} else if (word.equals("alter")) {
-			return ALTER;
+			return SqlType.ALTER;
 		} else if (word.equals("drop")) {
-			return DROP;
+			return SqlType.DROP;
 		} else if (word.equals("show")) {
-			return SHOW;
+			return SqlType.SHOW;
 		} else {
-			return UNKNOWN;
+			return SqlType.UNKNOWN;
 		}
 	}
 

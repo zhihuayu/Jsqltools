@@ -1,11 +1,11 @@
-package com.github.jsqltool.sql.typeHandler.impl;
+package com.github.jsqltool.sql.type.impl;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.LinkedList;
 
 import com.github.jsqltool.enums.JdbcType;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 
 @SuppressWarnings("rawtypes")
 public class TypeHandlerContent implements TypeHandler {

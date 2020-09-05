@@ -25,10 +25,9 @@ public class OracleSelectTableHandler implements SelectTableHandler {
 		String tableInfo = JdbcUtil.getTableNameInfo(connection, param.getCatalog(), param.getSchema(),
 				param.getTableName());
 		DatabaseMetaData metaData = connection.getMetaData();
-		// 获取行
-		SqlPlus.setPage(param.getPage(), param.getPageSize(), null, true,
-				DBType.getDBTypeByDriverClassName(metaData.getDriverName()), "select count(*) from " + tableInfo);
-		SqlResult result = SqlPlus.execute(connection, "select t.*,rowid from " + tableInfo + " t");
+		SqlPlus.setPage(param.getPage(), param.getPageSize(), param.getCount(), true,
+				DBType.getDBTypeByDriverClassName(metaData.getDriverName()));
+		SqlResult result = SqlPlus.execute(connection, "select t.*,rowid o_rowid from " + tableInfo + " t");
 		long endTime = System.currentTimeMillis();
 		if (result.getStatus() == SqlResult.success)
 			result.setMessage("执行成功，耗时：" + (endTime - startTime) + "ms");

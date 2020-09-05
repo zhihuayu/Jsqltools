@@ -28,21 +28,7 @@ public class MySqlSelectTableHandler extends DefaultSelectTableHandler implement
 		long startTime = System.currentTimeMillis();
 		DatabaseMetaData metaData = connection.getMetaData();
 		SqlPlus.execute(connection, "use " + param.getCatalog());
-		// 获取行的条数
-		long count = 0;
-		SqlResult select = SqlPlus.select(connection, "SHOW  TABLE STATUS  LIKE '" + param.getTableName().trim() + "'");
-		if (select.getCount() == 1L) {
-			List<Column> columns = select.getColumns();
-			for (int i = 0; i < columns.size(); i++) {
-				if (columns.get(i).getColumnName().equalsIgnoreCase("table_rows")) {
-					Object object = select.getRecords().get(0).getValues().get(i);
-					count = Long.valueOf(object.toString());
-					break;
-				}
-			}
-		}
-		// 获取行
-		SqlPlus.setPage(param.getPage(), param.getPageSize(), count, false,
+		SqlPlus.setPage(param.getPage(), param.getPageSize(), param.getCount(), true,
 				DBType.getDBTypeByDriverClassName(metaData.getDriverName()));
 		SqlResult result = SqlPlus.execute(connection, "select * from " + param.getTableName());
 		long endTime = System.currentTimeMillis();

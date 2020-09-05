@@ -1,4 +1,4 @@
-package com.github.jsqltool.sql.typeHandler;
+package com.github.jsqltool.sql.type;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

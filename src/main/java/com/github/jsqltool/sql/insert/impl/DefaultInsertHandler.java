@@ -21,7 +21,7 @@ import com.github.jsqltool.param.SqlParam;
 import com.github.jsqltool.param.UpdateParam;
 import com.github.jsqltool.sql.SqlPlus;
 import com.github.jsqltool.sql.insert.InsertHandler;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 import com.github.jsqltool.utils.JdbcUtil;
 import com.github.jsqltool.vo.UpdateResult;
 

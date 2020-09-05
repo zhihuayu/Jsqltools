@@ -113,7 +113,10 @@ public class JdbcUtil {
 		if (StringUtils.isBlank(key)) {
 			throw new CannotParseUrlException("can not parse url param");
 		}
-		FACTORY_MAP.remove(key);
+		DataSource remove = FACTORY_MAP.remove(key);
+		if(remove instanceof DruidDataSource) {
+			((DruidDataSource)remove).close();
+		}
 	}
 
 	public static DataSource getDataSource(String driverClassName, String url, String userName, String pwd,

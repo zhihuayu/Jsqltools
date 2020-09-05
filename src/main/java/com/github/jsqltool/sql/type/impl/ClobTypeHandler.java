@@ -1,11 +1,11 @@
-package com.github.jsqltool.sql.typeHandler.impl;
+package com.github.jsqltool.sql.type.impl;
 
 import java.sql.Clob;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import com.github.jsqltool.enums.JdbcType;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
+import com.github.jsqltool.sql.type.TypeHandler;
 
 public class ClobTypeHandler implements TypeHandler<String, String> {
 
@@ -17,20 +17,14 @@ public class ClobTypeHandler implements TypeHandler<String, String> {
 				return null;
 			}
 			int size = (int) clob.length();
-			String value = clob.getSubString(1, size);
-			return value;
+			return clob.getSubString(1, size);
 		}
 		return null;
 	}
 
 	@Override
 	public boolean support(JdbcType type) {
-		if (type == null) {
-			return false;
-		}
-		if (type == JdbcType.CLOB)
-			return true;
-		return false;
+		return type == JdbcType.CLOB;
 	}
 
 	@Override

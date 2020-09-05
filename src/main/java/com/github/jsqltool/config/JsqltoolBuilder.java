@@ -3,7 +3,9 @@ package com.github.jsqltool.config;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -40,6 +42,8 @@ import com.github.jsqltool.sql.dropTable.IdropTableHandler;
 import com.github.jsqltool.sql.dropTable.impl.DropTableHandlerContent;
 import com.github.jsqltool.sql.excuteCall.ExecuteCallHandler;
 import com.github.jsqltool.sql.excuteCall.impl.ExecuteCallHandlerContent;
+import com.github.jsqltool.sql.filter.NopSqlFilter;
+import com.github.jsqltool.sql.filter.SqlFilter;
 import com.github.jsqltool.sql.insert.InsertHandler;
 import com.github.jsqltool.sql.insert.impl.InsertHandlerContent;
 import com.github.jsqltool.sql.procedure.ProcedureHandler;
@@ -50,8 +54,8 @@ import com.github.jsqltool.sql.selectTable.SelectTableHandler;
 import com.github.jsqltool.sql.selectTable.impl.SelectTableContent;
 import com.github.jsqltool.sql.table.TableHandler;
 import com.github.jsqltool.sql.table.impl.TableHandlerContent;
-import com.github.jsqltool.sql.typeHandler.TypeHandler;
-import com.github.jsqltool.sql.typeHandler.impl.TypeHandlerContent;
+import com.github.jsqltool.sql.type.TypeHandler;
+import com.github.jsqltool.sql.type.impl.TypeHandlerContent;
 import com.github.jsqltool.sql.update.IUpdateDataHandler;
 import com.github.jsqltool.sql.update.impl.UpdateDataHandlerContent;
 import com.github.jsqltool.utils.JdbcUtil;
@@ -87,9 +91,14 @@ final public class JsqltoolBuilder {
 	// 获取表数据的处理器
 	private final SelectTableContent selectTableContent;
 	// 存储过程执行器
-	ExecuteCallHandlerContent executeCallContent;
+	private ExecuteCallHandlerContent executeCallContent;
 	// 储存过程（函数）处理器
-	ProcedureHandlerContent procedureHandlerContent;
+	private ProcedureHandlerContent procedureHandlerContent;
+	// sql过滤器,默认全部放行
+	private SqlFilter sqlFilter = new NopSqlFilter();
+
+	// 存储属性值
+	private static final ThreadLocal<Map<String, Object>> attrs = new ThreadLocal<>();
 
 	private JsqltoolBuilder() {
 		logger.info("JsqltoolBuilder start init...");
@@ -454,6 +463,15 @@ final public class JsqltoolBuilder {
 		return result;
 	}
 
+	/**
+	 * 获取sqlFilter
+	* @author yzh
+	* @date 2020年9月2日
+	 */
+	public SqlFilter getSqlFilter() {
+		return sqlFilter;
+	}
+
 	public void addFirstProcedureHandler(ProcedureHandler handler) {
 		procedureHandlerContent.addFirst(handler);
 	}
@@ -472,6 +490,36 @@ final public class JsqltoolBuilder {
 
 	public IModel getModel() {
 		return model;
+	}
+
+	/**
+	 * 设置属性值
+	* @author yzh
+	* @date 2020年9月2日
+	 */
+	public static void setAttr(String attrName, Object value) {
+		Map<String, Object> map = attrs.get();
+		if (map == null) {
+			map = new HashMap<>();
+			attrs.set(map);
+		}
+		map.put(attrName, value);
+	}
+
+	/**
+	 * 获取线程私有属性
+	* @author yzh
+	* @date 2020年9月2日
+	 */
+	public static Object getAttr(String attrName) {
+		Map<String, Object> map = attrs.get();
+		if (map != null)
+			return map.get(attrName);
+		return null;
+	}
+
+	public static void clearAttr() {
+		attrs.remove();
 	}
 
 }
