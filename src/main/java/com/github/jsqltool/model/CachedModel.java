@@ -10,6 +10,7 @@ import com.github.jsqltool.entity.ConnectionInfo;
 
 /**
  * 缓存类的Model
+ * 
  * @author yzh
  *
  * @date 2020年7月2日
@@ -29,7 +30,7 @@ public class CachedModel implements IModel {
 
 	@Override
 	public List<String> listConnection(String user) {
-		CacheUserConnectionInfo cacheInfo = tryGetCacheUserConnectionInfo(user);
+		CacheUserConnectionInfo cacheInfo = getConnectionInfoAndSaveCached(user);
 		return cacheInfo != null ? cacheInfo.listNames() : Collections.emptyList();
 	}
 
@@ -45,18 +46,34 @@ public class CachedModel implements IModel {
 
 	@Override
 	public List<ConnectionInfo> listConnectionInfo(String user) {
-		CacheUserConnectionInfo cacheInfo = tryGetCacheUserConnectionInfo(user);
+		CacheUserConnectionInfo cacheInfo = getConnectionInfoAndSaveCached(user);
 		return cacheInfo.listConnectionInfo();
 	}
 
 	/**
-	 *  尝试获取CacheUserConnectionInfo，如果没有尝试从target中获取一次。
-	* @author yzh
-	* @date 2020年7月2日
-	* @Description: 
-	*  @param user
-	*  @return    参数
-	* @return CacheUserConnectionInfo    返回类型
+	 * 直接获取ConnectionInfo信息并报存到缓存中
+	 * 
+	 * @description
+	 * @author yzh
+	 * @date 2020年9月7日
+	 * 
+	 * @param user
+	 * @return
+	 */
+	private CacheUserConnectionInfo getConnectionInfoAndSaveCached(String user) {
+		updateUserInfo(user);
+		return caches.get(user);
+	}
+
+	/**
+	 * 尝试获取CacheUserConnectionInfo，如果没有尝试从target中获取一次。
+	 * 
+	 * @author yzh
+	 * @date 2020年7月2日
+	 * @Description:
+	 * @param user
+	 * @return 参数
+	 * @return CacheUserConnectionInfo 返回类型
 	 */
 	private CacheUserConnectionInfo tryGetCacheUserConnectionInfo(String user) {
 		CacheUserConnectionInfo cacheInfo = caches.get(user);
