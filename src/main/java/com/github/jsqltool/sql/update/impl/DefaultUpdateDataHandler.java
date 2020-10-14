@@ -94,9 +94,9 @@ public class DefaultUpdateDataHandler extends AbstractUpdateDataHandler {
 						zwf.add(typeHandler.getParam(ch.getOldValue(), JdbcType.forCode(ch.getDataType())));
 						break;
 					}
-					if (!isFind) {
-						throw new UpdateDataException("找不到对应的索引行：" + index.getColumnName());
-					}
+				}
+				if (!isFind) {
+					throw new UpdateDataException("找不到对应的索引行：" + index.getColumnName());
 				}
 			}
 			sb.setLength(sb.length() - 4);
